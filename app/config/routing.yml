@@ -1,0 +1,28 @@
+ecole_de_magie_download:
+    resource: "@EcoleDeMagieDownloadBundle/Resources/config/routing.yml"
+    prefix:   /download
+
+ecole_de_magie_online:
+    resource: "@EcoleDeMagieOnlineBundle/Resources/config/routing.yml"
+    prefix:   /online
+
+ecole_de_magie_desktop:
+    resource: "@EcoleDeMagieDesktopBundle/Resources/config/routing.yml"
+    prefix:   /desktop
+
+ecole_de_magie_shop:
+    resource: "@EcoleDeMagieShopBundle/Resources/config/routing.yml"
+    prefix:   /shop
+
+ecole_de_magie_user:
+    resource: "@EcoleDeMagieUserBundle/Resources/config/routing.yml"
+    prefix:   /user
+
+ecole_de_magie_jeu:
+    resource: "@EcoleDeMagieJeuBundle/Resources/config/routing.yml"
+    prefix:   /
+
+# Internal routing configuration to handle ESI
+#_internal:
+#    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
+#    prefix:   /_internal

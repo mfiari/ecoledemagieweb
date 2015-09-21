@@ -1,0 +1,7 @@
+parameters:
+#    ecole_de_magie_shop.example.class: EcoleDeMagie\ShopBundle\Example
+
+services:
+#    ecole_de_magie_shop.example:
+#        class: %ecole_de_magie_shop.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]
