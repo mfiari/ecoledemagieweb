@@ -25,7 +25,7 @@ class AppKernel extends Kernel
             new EcoleDeMagie\DesktopBundle\EcoleDeMagieDesktopBundle(),
             new EcoleDeMagie\OnlineBundle\EcoleDeMagieOnlineBundle(),
             new EcoleDeMagie\DownloadBundle\EcoleDeMagieDownloadBundle(),
-            new Ecoledemagie\IndexBundle\EcoledemagieIndexBundle(),
+            new EcoleDeMagie\IndexBundle\EcoledemagieIndexBundle(),
         );
 
         if (in_array($this->getEnvironment(), array('dev', 'test'))) {

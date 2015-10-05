@@ -1,6 +1,6 @@
 <?php
 
-namespace Ecoledemagie\IndexBundle\DependencyInjection;
+namespace EcoleDeMagie\IndexBundle\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;

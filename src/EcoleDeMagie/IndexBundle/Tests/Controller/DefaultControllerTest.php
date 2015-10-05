@@ -1,6 +1,6 @@
 <?php
 
-namespace Ecoledemagie\IndexBundle\Tests\Controller;
+namespace EcoleDeMagie\IndexBundle\Tests\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 

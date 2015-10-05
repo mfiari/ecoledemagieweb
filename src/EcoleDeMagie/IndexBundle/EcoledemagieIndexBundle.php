@@ -1,9 +1,9 @@
 <?php
 
-namespace Ecoledemagie\IndexBundle;
+namespace EcoleDeMagie\IndexBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
-class EcoledemagieIndexBundle extends Bundle
+class EcoleDeMagieIndexBundle extends Bundle
 {
 }

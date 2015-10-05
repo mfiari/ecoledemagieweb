@@ -1,6 +1,6 @@
 <?php
 
-namespace Ecoledemagie\IndexBundle\Controller;
+namespace EcoleDeMagie\IndexBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
@@ -8,6 +8,6 @@ class DefaultController extends Controller
 {
     public function indexAction()
     {
-        return $this->render('EcoledemagieIndexBundle:Default:index.html.twig');
+        return $this->render('EcoleDeMagieIndexBundle:Default:index.html.twig');
     }
 }

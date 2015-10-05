@@ -1,5 +1,5 @@
 ecoledemagie_index:
-    resource: "@EcoledemagieIndexBundle/Resources/config/routing.yml"
+    resource: "@EcoleDeMagieIndexBundle/Resources/config/routing.yml"
     prefix:   /
 
 ecole_de_magie_download:
