@@ -1,0 +1,7 @@
+parameters:
+#    ecoledemagie_index.example.class: Ecoledemagie\IndexBundle\Example
+
+services:
+#    ecoledemagie_index.example:
+#        class: %ecoledemagie_index.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]

@@ -1,3 +1,7 @@
+ecoledemagie_index:
+    resource: "@EcoledemagieIndexBundle/Resources/config/routing.yml"
+    prefix:   /
+
 ecole_de_magie_download:
     resource: "@EcoleDeMagieDownloadBundle/Resources/config/routing.yml"
     prefix:   /download
@@ -20,7 +24,7 @@ ecole_de_magie_user:
 
 ecole_de_magie_jeu:
     resource: "@EcoleDeMagieJeuBundle/Resources/config/routing.yml"
-    prefix:   /
+    prefix:   /jeu
 
 # Internal routing configuration to handle ESI
 #_internal:

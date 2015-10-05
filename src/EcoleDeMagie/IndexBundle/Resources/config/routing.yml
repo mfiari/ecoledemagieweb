@@ -1,0 +1,3 @@
+ecoledemagie_index_homepage:
+    pattern:  /
+    defaults: { _controller: EcoledemagieIndexBundle:Default:index }

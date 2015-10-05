@@ -1,1 +1,10 @@
-Hello {{ name }}!
+{% extends "::layout.html.twig" %}
+	{% block title %}{{ parent() }}Download{% endblock %}
+	{% block body %}
+		<h1>Download</h1>
+		<div class="row">
+			<div class="col-md-12">
+				<p>Cette page est en construction</p>
+			</div>
+		</div>
+	{% endblock %}
