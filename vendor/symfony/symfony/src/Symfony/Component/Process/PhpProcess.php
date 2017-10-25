@@ -11,6 +11,8 @@
 
 namespace Symfony\Component\Process;
 
+use Symfony\Component\Process\Exception\RuntimeException;
+
 /**
  * PhpProcess runs a PHP script in an independent process.
  *
@@ -19,35 +21,42 @@ namespace Symfony\Component\Process;
  * print $p->getOutput()."\n";
  *
  * @author Fabien Potencier <fabien@symfony.com>
- *
- * @api
  */
 class PhpProcess extends Process
 {
-    private $executableFinder;
-
     /**
      * Constructor.
      *
-     * @param string  $script  The PHP script to run (as a string)
-     * @param string  $cwd     The working directory
-     * @param array   $env     The environment variables
-     * @param integer $timeout The timeout in seconds
-     * @param array   $options An array of options for proc_open
-     *
-     * @api
+     * @param string      $script  The PHP script to run (as a string)
+     * @param string|null $cwd     The working directory or null to use the working dir of the current PHP process
+     * @param array|null  $env     The environment variables or null to use the same environment as the current PHP process
+     * @param int         $timeout The timeout in seconds
+     * @param array       $options An array of options for proc_open
      */
-    public function __construct($script, $cwd = null, array $env = array(), $timeout = 60, array $options = array())
+    public function __construct($script, $cwd = null, array $env = null, $timeout = 60, array $options = null)
     {
-        parent::__construct(null, $cwd, $env, $script, $timeout, $options);
+        $executableFinder = new PhpExecutableFinder();
+        if (false === $php = $executableFinder->find(false)) {
+            $php = null;
+        } else {
+            $php = array_merge(array($php), $executableFinder->findArguments());
+        }
+        if ('phpdbg' === PHP_SAPI) {
+            $file = tempnam(sys_get_temp_dir(), 'dbg');
+            file_put_contents($file, $script);
+            register_shutdown_function('unlink', $file);
+            $php[] = $file;
+            $script = null;
+        }
+        if (null !== $options) {
+            @trigger_error(sprintf('The $options parameter of the %s constructor is deprecated since version 3.3 and will be removed in 4.0.', __CLASS__), E_USER_DEPRECATED);
+        }
 
-        $this->executableFinder = new PhpExecutableFinder();
+        parent::__construct($php, $cwd, $env, $script, $timeout, $options);
     }
 
     /**
      * Sets the path to the PHP binary to use.
-     *
-     * @api
      */
     public function setPhpBinary($php)
     {
@@ -55,24 +64,15 @@ class PhpProcess extends Process
     }
 
     /**
-     * Runs the process.
-     *
-     * @param Closure|string|array $callback A PHP callback to run whenever there is some
-     *                                       output available on STDOUT or STDERR
-     *
-     * @return integer The exit status code
-     *
-     * @api
+     * {@inheritdoc}
      */
-    public function run($callback = null)
+    public function start(callable $callback = null/*, array $env = array()*/)
     {
         if (null === $this->getCommandLine()) {
-            if (false === $php = $this->executableFinder->find()) {
-                throw new \RuntimeException('Unable to find the PHP executable.');
-            }
-            $this->setCommandLine($php);
+            throw new RuntimeException('Unable to find the PHP executable.');
         }
+        $env = 1 < func_num_args() ? func_get_arg(1) : null;
 
-        return parent::run($callback);
+        parent::start($callback, $env);
     }
 }

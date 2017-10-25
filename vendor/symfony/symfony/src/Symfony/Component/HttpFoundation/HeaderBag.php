@@ -15,25 +15,19 @@ namespace Symfony\Component\HttpFoundation;
  * HeaderBag is a container for HTTP headers.
  *
  * @author Fabien Potencier <fabien@symfony.com>
- *
- * @api
  */
 class HeaderBag implements \IteratorAggregate, \Countable
 {
-    protected $headers;
-    protected $cacheControl;
+    protected $headers = array();
+    protected $cacheControl = array();
 
     /**
      * Constructor.
      *
      * @param array $headers An array of HTTP headers
-     *
-     * @api
      */
     public function __construct(array $headers = array())
     {
-        $this->cacheControl = array();
-        $this->headers = array();
         foreach ($headers as $key => $values) {
             $this->set($key, $values);
         }
@@ -46,14 +40,14 @@ class HeaderBag implements \IteratorAggregate, \Countable
      */
     public function __toString()
     {
-        if (!$this->headers) {
+        if (!$headers = $this->all()) {
             return '';
         }
 
-        $max = max(array_map('strlen', array_keys($this->headers))) + 1;
+        ksort($headers);
+        $max = max(array_map('strlen', array_keys($headers))) + 1;
         $content = '';
-        ksort($this->headers);
-        foreach ($this->headers as $name => $values) {
+        foreach ($headers as $name => $values) {
             $name = implode('-', array_map('ucfirst', explode('-', $name)));
             foreach ($values as $value) {
                 $content .= sprintf("%-{$max}s %s\r\n", $name.':', $value);
@@ -67,8 +61,6 @@ class HeaderBag implements \IteratorAggregate, \Countable
      * Returns the headers.
      *
      * @return array An array of headers
-     *
-     * @api
      */
     public function all()
     {
@@ -79,20 +71,16 @@ class HeaderBag implements \IteratorAggregate, \Countable
      * Returns the parameter keys.
      *
      * @return array An array of parameter keys
-     *
-     * @api
      */
     public function keys()
     {
-        return array_keys($this->headers);
+        return array_keys($this->all());
     }
 
     /**
      * Replaces the current HTTP headers by a new set.
      *
      * @param array $headers An array of HTTP headers
-     *
-     * @api
      */
     public function replace(array $headers = array())
     {
@@ -104,8 +92,6 @@ class HeaderBag implements \IteratorAggregate, \Countable
      * Adds new headers the current HTTP headers set.
      *
      * @param array $headers An array of HTTP headers
-     *
-     * @api
      */
     public function add(array $headers)
     {
@@ -117,19 +103,18 @@ class HeaderBag implements \IteratorAggregate, \Countable
     /**
      * Returns a header value by name.
      *
-     * @param string  $key     The header name
-     * @param mixed   $default The default value
-     * @param Boolean $first   Whether to return the first value or all header values
+     * @param string $key     The header name
+     * @param mixed  $default The default value
+     * @param bool   $first   Whether to return the first value or all header values
      *
      * @return string|array The first header value if $first is true, an array of values otherwise
-     *
-     * @api
      */
     public function get($key, $default = null, $first = true)
     {
-        $key = strtr(strtolower($key), '_', '-');
+        $key = str_replace('_', '-', strtolower($key));
+        $headers = $this->all();
 
-        if (!array_key_exists($key, $this->headers)) {
+        if (!array_key_exists($key, $headers)) {
             if (null === $default) {
                 return $first ? null : array();
             }
@@ -138,10 +123,10 @@ class HeaderBag implements \IteratorAggregate, \Countable
         }
 
         if ($first) {
-            return count($this->headers[$key]) ? $this->headers[$key][0] : $default;
+            return count($headers[$key]) ? $headers[$key][0] : $default;
         }
 
-        return $this->headers[$key];
+        return $headers[$key];
     }
 
     /**
@@ -149,13 +134,11 @@ class HeaderBag implements \IteratorAggregate, \Countable
      *
      * @param string       $key     The key
      * @param string|array $values  The value or an array of values
-     * @param Boolean      $replace Whether to replace the actual value of not (true by default)
-     *
-     * @api
+     * @param bool         $replace Whether to replace the actual value or not (true by default)
      */
     public function set($key, $values, $replace = true)
     {
-        $key = strtr(strtolower($key), '_', '-');
+        $key = str_replace('_', '-', strtolower($key));
 
         $values = array_values((array) $values);
 
@@ -175,13 +158,11 @@ class HeaderBag implements \IteratorAggregate, \Countable
      *
      * @param string $key The HTTP header
      *
-     * @return Boolean true if the parameter exists, false otherwise
-     *
-     * @api
+     * @return bool true if the parameter exists, false otherwise
      */
     public function has($key)
     {
-        return array_key_exists(strtr(strtolower($key), '_', '-'), $this->headers);
+        return array_key_exists(str_replace('_', '-', strtolower($key)), $this->all());
     }
 
     /**
@@ -190,9 +171,7 @@ class HeaderBag implements \IteratorAggregate, \Countable
      * @param string $key   The HTTP header name
      * @param string $value The HTTP value
      *
-     * @return Boolean true if the value is contained in the header, false otherwise
-     *
-     * @api
+     * @return bool true if the value is contained in the header, false otherwise
      */
     public function contains($key, $value)
     {
@@ -203,12 +182,10 @@ class HeaderBag implements \IteratorAggregate, \Countable
      * Removes a header.
      *
      * @param string $key The HTTP header name
-     *
-     * @api
      */
     public function remove($key)
     {
-        $key = strtr(strtolower($key), '_', '-');
+        $key = str_replace('_', '-', strtolower($key));
 
         unset($this->headers[$key]);
 
@@ -223,11 +200,9 @@ class HeaderBag implements \IteratorAggregate, \Countable
      * @param string    $key     The parameter key
      * @param \DateTime $default The default value
      *
-     * @return null|\DateTime The filtered value
+     * @return null|\DateTime The parsed DateTime or the default value if the header does not exist
      *
      * @throws \RuntimeException When the HTTP header is not parseable
-     *
-     * @api
      */
     public function getDate($key, \DateTime $default = null)
     {
@@ -242,6 +217,12 @@ class HeaderBag implements \IteratorAggregate, \Countable
         return $date;
     }
 
+    /**
+     * Adds a custom Cache-Control directive.
+     *
+     * @param string $key   The Cache-Control directive name
+     * @param mixed  $value The Cache-Control directive value
+     */
     public function addCacheControlDirective($key, $value = true)
     {
         $this->cacheControl[$key] = $value;
@@ -249,16 +230,35 @@ class HeaderBag implements \IteratorAggregate, \Countable
         $this->set('Cache-Control', $this->getCacheControlHeader());
     }
 
+    /**
+     * Returns true if the Cache-Control directive is defined.
+     *
+     * @param string $key The Cache-Control directive
+     *
+     * @return bool true if the directive exists, false otherwise
+     */
     public function hasCacheControlDirective($key)
     {
         return array_key_exists($key, $this->cacheControl);
     }
 
+    /**
+     * Returns a Cache-Control directive value by name.
+     *
+     * @param string $key The directive name
+     *
+     * @return mixed|null The directive value if defined, null otherwise
+     */
     public function getCacheControlDirective($key)
     {
         return array_key_exists($key, $this->cacheControl) ? $this->cacheControl[$key] : null;
     }
 
+    /**
+     * Removes a Cache-Control directive.
+     *
+     * @param string $key The Cache-Control directive
+     */
     public function removeCacheControlDirective($key)
     {
         unset($this->cacheControl[$key]);
@@ -317,7 +317,7 @@ class HeaderBag implements \IteratorAggregate, \Countable
         $cacheControl = array();
         preg_match_all('#([a-zA-Z][a-zA-Z_-]*)\s*(?:=(?:"([^"]*)"|([^ \t",;]*)))?#', $header, $matches, PREG_SET_ORDER);
         foreach ($matches as $match) {
-            $cacheControl[strtolower($match[1])] = isset($match[2]) && $match[2] ? $match[2] : (isset($match[3]) ? $match[3] : true);
+            $cacheControl[strtolower($match[1])] = isset($match[3]) ? $match[3] : (isset($match[2]) ? $match[2] : true);
         }
 
         return $cacheControl;

@@ -14,6 +14,8 @@ namespace Symfony\Bridge\Doctrine\DependencyInjection\CompilerPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
+use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
+use Symfony\Component\DependencyInjection\Exception\RuntimeException;
 
 /**
  * Registers event listeners and subscribers to the available doctrine connections.
@@ -35,7 +37,7 @@ class RegisterEventListenersAndSubscribersPass implements CompilerPassInterface
      * @param string $connections     Parameter ID for connections
      * @param string $managerTemplate sprintf() template for generating the event
      *                                manager's service ID for a connection name
-     * @param string $tagPrefix Tag prefix for listeners and subscribers
+     * @param string $tagPrefix       Tag prefix for listeners and subscribers
      */
     public function __construct($connections, $managerTemplate, $tagPrefix)
     {
@@ -45,7 +47,7 @@ class RegisterEventListenersAndSubscribersPass implements CompilerPassInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function process(ContainerBuilder $container)
     {
@@ -53,35 +55,46 @@ class RegisterEventListenersAndSubscribersPass implements CompilerPassInterface
             return;
         }
 
+        $taggedSubscribers = $container->findTaggedServiceIds($this->tagPrefix.'.event_subscriber', true);
+        $taggedListeners = $container->findTaggedServiceIds($this->tagPrefix.'.event_listener', true);
+
+        if (empty($taggedSubscribers) && empty($taggedListeners)) {
+            return;
+        }
+
         $this->container = $container;
         $this->connections = $container->getParameter($this->connections);
-        $sortFunc = function($a, $b) {
+        $sortFunc = function ($a, $b) {
             $a = isset($a['priority']) ? $a['priority'] : 0;
             $b = isset($b['priority']) ? $b['priority'] : 0;
 
             return $a > $b ? -1 : 1;
         };
 
-        $subscribersPerCon = $this->groupByConnection($container->findTaggedServiceIds($this->tagPrefix.'.event_subscriber'));
-        foreach ($subscribersPerCon as $con => $subscribers) {
-            $em = $this->getEventManager($con);
+        if (!empty($taggedSubscribers)) {
+            $subscribersPerCon = $this->groupByConnection($taggedSubscribers);
+            foreach ($subscribersPerCon as $con => $subscribers) {
+                $em = $this->getEventManager($con);
 
-            uasort($subscribers, $sortFunc);
-            foreach ($subscribers as $id => $instance) {
-                $em->addMethodCall('addEventSubscriber', array(new Reference($id)));
+                uasort($subscribers, $sortFunc);
+                foreach ($subscribers as $id => $instance) {
+                    $em->addMethodCall('addEventSubscriber', array(new Reference($id)));
+                }
             }
         }
 
-        $listenersPerCon = $this->groupByConnection($container->findTaggedServiceIds($this->tagPrefix.'.event_listener'), true);
-        foreach ($listenersPerCon as $con => $listeners) {
-            $em = $this->getEventManager($con);
+        if (!empty($taggedListeners)) {
+            $listenersPerCon = $this->groupByConnection($taggedListeners, true);
+            foreach ($listenersPerCon as $con => $listeners) {
+                $em = $this->getEventManager($con);
 
-            uasort($listeners, $sortFunc);
-            foreach ($listeners as $id => $instance) {
-                $em->addMethodCall('addEventListener', array(
-                    array_unique($instance['event']),
-                    isset($instance['lazy']) && $instance['lazy'] ? $id : new Reference($id),
-                ));
+                uasort($listeners, $sortFunc);
+                foreach ($listeners as $id => $instance) {
+                    $em->addMethodCall('addEventListener', array(
+                        array_unique($instance['event']),
+                        isset($instance['lazy']) && $instance['lazy'] ? $id : new Reference($id),
+                    ));
+                }
             }
         }
     }
@@ -97,11 +110,11 @@ class RegisterEventListenersAndSubscribersPass implements CompilerPassInterface
             foreach ($instances as $instance) {
                 if ($isListener) {
                     if (!isset($instance['event'])) {
-                        throw new \InvalidArgumentException(sprintf('Doctrine event listener "%s" must specify the "event" attribute.', $id));
+                        throw new InvalidArgumentException(sprintf('Doctrine event listener "%s" must specify the "event" attribute.', $id));
                     }
                     $instance['event'] = array($instance['event']);
 
-                    if (isset($instance['lazy']) && $instance['lazy']) {
+                    if ($lazy = !empty($instance['lazy'])) {
                         $this->container->getDefinition($id)->setPublic(true);
                     }
                 }
@@ -109,7 +122,7 @@ class RegisterEventListenersAndSubscribersPass implements CompilerPassInterface
                 $cons = isset($instance['connection']) ? array($instance['connection']) : $allCons;
                 foreach ($cons as $con) {
                     if (!isset($grouped[$con])) {
-                        throw new \RuntimeException(sprintf('The Doctrine connection "%s" referenced in service "%s" does not exist. Available connections names: %s', $con, $id, implode(', ', array_keys($this->connections))));
+                        throw new RuntimeException(sprintf('The Doctrine connection "%s" referenced in service "%s" does not exist. Available connections names: %s', $con, $id, implode(', ', array_keys($this->connections))));
                     }
 
                     if ($isListener && isset($grouped[$con][$id])) {

@@ -12,14 +12,21 @@
 namespace Symfony\Bridge\Twig\NodeVisitor;
 
 use Symfony\Bridge\Twig\Node\TransNode;
+use Twig\Environment;
+use Twig\Node\Expression\ConstantExpression;
+use Twig\Node\Expression\FilterExpression;
+use Twig\Node\Node;
+use Twig\NodeVisitor\AbstractNodeVisitor;
 
 /**
  * TranslationNodeVisitor extracts translation messages.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class TranslationNodeVisitor implements \Twig_NodeVisitorInterface
+class TranslationNodeVisitor extends AbstractNodeVisitor
 {
+    const UNDEFINED_DOMAIN = '_undefined';
+
     private $enabled = false;
     private $messages = array();
 
@@ -43,37 +50,37 @@ class TranslationNodeVisitor implements \Twig_NodeVisitorInterface
     /**
      * {@inheritdoc}
      */
-    public function enterNode(\Twig_NodeInterface $node, \Twig_Environment $env)
+    protected function doEnterNode(Node $node, Environment $env)
     {
         if (!$this->enabled) {
             return $node;
         }
 
         if (
-            $node instanceof \Twig_Node_Expression_Filter &&
+            $node instanceof FilterExpression &&
             'trans' === $node->getNode('filter')->getAttribute('value') &&
-            $node->getNode('node') instanceof \Twig_Node_Expression_Constant
+            $node->getNode('node') instanceof ConstantExpression
         ) {
             // extract constant nodes with a trans filter
             $this->messages[] = array(
                 $node->getNode('node')->getAttribute('value'),
-                $node->getNode('arguments')->hasNode(1) ? $node->getNode('arguments')->getNode(1)->getAttribute('value') : null,
+                $this->getReadDomainFromArguments($node->getNode('arguments'), 1),
             );
         } elseif (
-            $node instanceof \Twig_Node_Expression_Filter &&
+            $node instanceof FilterExpression &&
             'transchoice' === $node->getNode('filter')->getAttribute('value') &&
-            $node->getNode('node') instanceof \Twig_Node_Expression_Constant
+            $node->getNode('node') instanceof ConstantExpression
         ) {
             // extract constant nodes with a trans filter
             $this->messages[] = array(
                 $node->getNode('node')->getAttribute('value'),
-                $node->getNode('arguments')->hasNode(2) ? $node->getNode('arguments')->getNode(2)->getAttribute('value') : null,
+                $this->getReadDomainFromArguments($node->getNode('arguments'), 2),
             );
         } elseif ($node instanceof TransNode) {
             // extract trans nodes
             $this->messages[] = array(
                 $node->getNode('body')->getAttribute('data'),
-                null === $node->getNode('domain') ? 'messages' : $node->getNode('domain')->getAttribute('value'),
+                $node->hasNode('domain') ? $this->getReadDomainFromNode($node->getNode('domain')) : null,
             );
         }
 
@@ -83,7 +90,7 @@ class TranslationNodeVisitor implements \Twig_NodeVisitorInterface
     /**
      * {@inheritdoc}
      */
-    public function leaveNode(\Twig_NodeInterface $node, \Twig_Environment $env)
+    protected function doLeaveNode(Node $node, Environment $env)
     {
         return $node;
     }
@@ -93,6 +100,39 @@ class TranslationNodeVisitor implements \Twig_NodeVisitorInterface
      */
     public function getPriority()
     {
-        return -10;
+        return 0;
+    }
+
+    /**
+     * @param Node $arguments
+     * @param int  $index
+     *
+     * @return string|null
+     */
+    private function getReadDomainFromArguments(Node $arguments, $index)
+    {
+        if ($arguments->hasNode('domain')) {
+            $argument = $arguments->getNode('domain');
+        } elseif ($arguments->hasNode($index)) {
+            $argument = $arguments->getNode($index);
+        } else {
+            return;
+        }
+
+        return $this->getReadDomainFromNode($argument);
+    }
+
+    /**
+     * @param Node $node
+     *
+     * @return string|null
+     */
+    private function getReadDomainFromNode(Node $node)
+    {
+        if ($node instanceof ConstantExpression) {
+            return $node->getAttribute('value');
+        }
+
+        return self::UNDEFINED_DOMAIN;
     }
 }

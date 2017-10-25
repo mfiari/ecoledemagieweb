@@ -9,26 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\Bundle\FrameworkBundle\Tests\Functional;
-
-// get the autoload file
-$dir = __DIR__;
-$lastDir = null;
-while ($dir !== $lastDir) {
-    $lastDir = $dir;
-
-    if (file_exists($dir.'/autoload.php')) {
-        require_once $dir.'/autoload.php';
-        break;
-    }
-
-    if (file_exists($dir.'/autoload.php.dist')) {
-        require_once $dir.'/autoload.php.dist';
-        break;
-    }
-
-    $dir = dirname($dir);
-}
+namespace Symfony\Bundle\FrameworkBundle\Tests\Functional\app;
 
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -41,14 +22,16 @@ use Symfony\Component\HttpKernel\Kernel;
  */
 class AppKernel extends Kernel
 {
+    private $varDir;
     private $testCase;
     private $rootConfig;
 
-    public function __construct($testCase, $rootConfig, $environment, $debug)
+    public function __construct($varDir, $testCase, $rootConfig, $environment, $debug)
     {
         if (!is_dir(__DIR__.'/'.$testCase)) {
             throw new \InvalidArgumentException(sprintf('The test case "%s" does not exist.', $testCase));
         }
+        $this->varDir = $varDir;
         $this->testCase = $testCase;
 
         $fs = new Filesystem();
@@ -69,10 +52,6 @@ class AppKernel extends Kernel
         return include $filename;
     }
 
-    public function init()
-    {
-    }
-
     public function getRootDir()
     {
         return __DIR__;
@@ -80,12 +59,12 @@ class AppKernel extends Kernel
 
     public function getCacheDir()
     {
-        return sys_get_temp_dir().'/'.Kernel::VERSION.'/'.$this->testCase.'/cache/'.$this->environment;
+        return sys_get_temp_dir().'/'.$this->varDir.'/'.$this->testCase.'/cache/'.$this->environment;
     }
 
     public function getLogDir()
     {
-        return sys_get_temp_dir().'/'.Kernel::VERSION.'/'.$this->testCase.'/logs';
+        return sys_get_temp_dir().'/'.$this->varDir.'/'.$this->testCase.'/logs';
     }
 
     public function registerContainerConfiguration(LoaderInterface $loader)
@@ -95,12 +74,13 @@ class AppKernel extends Kernel
 
     public function serialize()
     {
-        return serialize(array($this->testCase, $this->rootConfig, $this->getEnvironment(), $this->isDebug()));
+        return serialize(array($this->varDir, $this->testCase, $this->rootConfig, $this->getEnvironment(), $this->isDebug()));
     }
 
     public function unserialize($str)
     {
-        call_user_func_array(array($this, '__construct'), unserialize($str));
+        $a = unserialize($str);
+        $this->__construct($a[0], $a[1], $a[2], $a[3], $a[4]);
     }
 
     protected function getKernelParameters()

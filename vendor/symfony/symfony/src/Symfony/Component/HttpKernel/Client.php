@@ -11,22 +11,22 @@
 
 namespace Symfony\Component\HttpKernel;
 
-use Symfony\Component\HttpFoundation\File\UploadedFile;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\BrowserKit\Client as BaseClient;
 use Symfony\Component\BrowserKit\Request as DomRequest;
 use Symfony\Component\BrowserKit\Response as DomResponse;
-use Symfony\Component\BrowserKit\Cookie as DomCookie;
 use Symfony\Component\BrowserKit\History;
 use Symfony\Component\BrowserKit\CookieJar;
-use Symfony\Component\HttpKernel\TerminableInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Client simulates a browser and makes requests to a Kernel object.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  *
- * @api
+ * @method Request|null getRequest() A Request instance
+ * @method Response|null getResponse() A Response instance
  */
 class Client extends BaseClient
 {
@@ -42,11 +42,11 @@ class Client extends BaseClient
      */
     public function __construct(HttpKernelInterface $kernel, array $server = array(), History $history = null, CookieJar $cookieJar = null)
     {
+        // These class properties must be set before calling the parent constructor, as it may depend on it.
         $this->kernel = $kernel;
+        $this->followRedirects = false;
 
         parent::__construct($server, $history, $cookieJar);
-
-        $this->followRedirects = false;
     }
 
     /**
@@ -71,35 +71,61 @@ class Client extends BaseClient
      * Returns the script to execute when the request must be insulated.
      *
      * @param Request $request A Request instance
+     *
+     * @return string
      */
     protected function getScript($request)
     {
         $kernel = str_replace("'", "\\'", serialize($this->kernel));
         $request = str_replace("'", "\\'", serialize($request));
+        $errorReporting = error_reporting();
 
-        $r = new \ReflectionClass('\\Symfony\\Component\\ClassLoader\\UniversalClassLoader');
-        $requirePath = str_replace("'", "\\'", $r->getFileName());
+        $requires = '';
+        foreach (get_declared_classes() as $class) {
+            if (0 === strpos($class, 'ComposerAutoloaderInit')) {
+                $r = new \ReflectionClass($class);
+                $file = dirname(dirname($r->getFileName())).'/autoload.php';
+                if (file_exists($file)) {
+                    $requires .= "require_once '".str_replace("'", "\\'", $file)."';\n";
+                }
+            }
+        }
 
-        $symfonyPath = str_replace("'", "\\'", realpath(__DIR__.'/../../..'));
+        if (!$requires) {
+            throw new \RuntimeException('Composer autoloader not found.');
+        }
 
-        return <<<EOF
+        $code = <<<EOF
 <?php
 
-require_once '$requirePath';
+error_reporting($errorReporting);
 
-\$loader = new Symfony\Component\ClassLoader\UniversalClassLoader();
-\$loader->registerNamespaces(array('Symfony' => '$symfonyPath'));
-\$loader->register();
+$requires
 
 \$kernel = unserialize('$kernel');
-echo serialize(\$kernel->handle(unserialize('$request')));
+\$request = unserialize('$request');
+EOF;
+
+        return $code.$this->getHandleScript();
+    }
+
+    protected function getHandleScript()
+    {
+        return <<<'EOF'
+$response = $kernel->handle($request);
+
+if ($kernel instanceof Symfony\Component\HttpKernel\TerminableInterface) {
+    $kernel->terminate($request, $response);
+}
+
+echo serialize($response);
 EOF;
     }
 
     /**
      * Converts the BrowserKit request to a HttpKernel request.
      *
-     * @param DomRequest $request A Request instance
+     * @param DomRequest $request A DomRequest instance
      *
      * @return Request A Request instance
      */
@@ -107,7 +133,9 @@ EOF;
     {
         $httpRequest = Request::create($request->getUri(), $request->getMethod(), $request->getParameters(), $request->getCookies(), $request->getFiles(), $request->getServer(), $request->getContent());
 
-        $httpRequest->files->replace($this->filterFiles($httpRequest->files->all()));
+        foreach ($this->filterFiles($httpRequest->files->all()) as $key => $value) {
+            $httpRequest->files->set($key, $value);
+        }
 
         return $httpRequest;
     }
@@ -121,7 +149,7 @@ EOF;
      * If the size of a file is greater than the allowed size (from php.ini) then
      * an invalid UploadedFile is returned with an error set to UPLOAD_ERR_INI_SIZE.
      *
-     * @see Symfony\Component\HttpFoundation\File\UploadedFile
+     * @see UploadedFile
      *
      * @param array $files An array of files
      *
@@ -153,8 +181,6 @@ EOF;
                         true
                     );
                 }
-            } else {
-                $filtered[$key] = $value;
             }
         }
 
@@ -166,19 +192,15 @@ EOF;
      *
      * @param Response $response A Response instance
      *
-     * @return Response A Response instance
+     * @return DomResponse A DomResponse instance
      */
     protected function filterResponse($response)
     {
-        $headers = $response->headers->all();
-        if ($response->headers->getCookies()) {
-            $cookies = array();
-            foreach ($response->headers->getCookies() as $cookie) {
-                $cookies[] = new DomCookie($cookie->getName(), $cookie->getValue(), $cookie->getExpiresTime(), $cookie->getPath(), $cookie->getDomain(), $cookie->isSecure(), $cookie->isHttpOnly());
-            }
-            $headers['Set-Cookie'] = $cookies;
-        }
+        // this is needed to support StreamedResponse
+        ob_start();
+        $response->sendContent();
+        $content = ob_get_clean();
 
-        return new DomResponse($response->getContent(), $response->getStatusCode(), $headers);
+        return new DomResponse($content, $response->getStatusCode(), $response->headers->all());
     }
 }

@@ -15,28 +15,33 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Lazily loads listeners and subscribers from the dependency injection
- * container
+ * container.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Bernhard Schussek <bschussek@gmail.com>
  * @author Jordan Alliot <jordan.alliot@gmail.com>
+ *
+ * @deprecated since 3.3, to be removed in 4.0. Use EventDispatcher with closure factories instead.
  */
 class ContainerAwareEventDispatcher extends EventDispatcher
 {
     /**
-     * The container from where services are loaded
+     * The container from where services are loaded.
+     *
      * @var ContainerInterface
      */
     private $container;
 
     /**
-     * The service IDs of the event listeners and subscribers
+     * The service IDs of the event listeners and subscribers.
+     *
      * @var array
      */
     private $listenerIds = array();
 
     /**
-     * The services registered as listeners
+     * The services registered as listeners.
+     *
      * @var array
      */
     private $listeners = array();
@@ -49,20 +54,32 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
+
+        $class = get_class($this);
+        if ($this instanceof \PHPUnit_Framework_MockObject_MockObject || $this instanceof \Prophecy\Doubler\DoubleInterface) {
+            $class = get_parent_class($class);
+        }
+        if (__CLASS__ !== $class) {
+            @trigger_error(sprintf('The %s class is deprecated since version 3.3 and will be removed in 4.0. Use EventDispatcher with closure factories instead.', __CLASS__), E_USER_DEPRECATED);
+        }
     }
 
     /**
-     * Adds a service as event listener
+     * Adds a service as event listener.
      *
      * @param string $eventName Event for which the listener is added
      * @param array  $callback  The service ID of the listener service & the method
-     *                            name that has to be called
-     * @param integer $priority The higher this value, the earlier an event listener
-     *                            will be triggered in the chain.
-     *                            Defaults to 0.
+     *                          name that has to be called
+     * @param int    $priority  The higher this value, the earlier an event listener
+     *                          will be triggered in the chain.
+     *                          Defaults to 0.
+     *
+     * @throws \InvalidArgumentException
      */
     public function addListenerService($eventName, $callback, $priority = 0)
     {
+        @trigger_error(sprintf('The %s class is deprecated since version 3.3 and will be removed in 4.0. Use EventDispatcher with closure factories instead.', __CLASS__), E_USER_DEPRECATED);
+
         if (!is_array($callback) || 2 !== count($callback)) {
             throw new \InvalidArgumentException('Expected an array("service", "method") argument');
         }
@@ -74,21 +91,17 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     {
         $this->lazyLoad($eventName);
 
-        if (isset($this->listeners[$eventName])) {
-            foreach ($this->listeners[$eventName] as $key => $l) {
-                foreach ($this->listenerIds[$eventName] as $i => $args) {
-                    list($serviceId, $method, $priority) = $args;
-                    if ($key === $serviceId.'.'.$method) {
-                        if ($listener === array($l, $method)) {
-                            unset($this->listeners[$eventName][$key]);
-                            if (empty($this->listeners[$eventName])) {
-                                unset($this->listeners[$eventName]);
-                            }
-                            unset($this->listenerIds[$eventName][$i]);
-                            if (empty($this->listenerIds[$eventName])) {
-                                unset($this->listenerIds[$eventName]);
-                            }
-                        }
+        if (isset($this->listenerIds[$eventName])) {
+            foreach ($this->listenerIds[$eventName] as $i => list($serviceId, $method, $priority)) {
+                $key = $serviceId.'.'.$method;
+                if (isset($this->listeners[$eventName][$key]) && $listener === array($this->listeners[$eventName][$key], $method)) {
+                    unset($this->listeners[$eventName][$key]);
+                    if (empty($this->listeners[$eventName])) {
+                        unset($this->listeners[$eventName]);
+                    }
+                    unset($this->listenerIds[$eventName][$i]);
+                    if (empty($this->listenerIds[$eventName])) {
+                        unset($this->listenerIds[$eventName]);
                     }
                 }
             }
@@ -98,12 +111,12 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     }
 
     /**
-     * @see EventDispatcherInterface::hasListeners
+     * {@inheritdoc}
      */
     public function hasListeners($eventName = null)
     {
         if (null === $eventName) {
-            return (Boolean) count($this->listenerIds) || (Boolean) count($this->listeners);
+            return $this->listenerIds || $this->listeners || parent::hasListeners();
         }
 
         if (isset($this->listenerIds[$eventName])) {
@@ -114,12 +127,12 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     }
 
     /**
-     * @see EventDispatcherInterface::getListeners
+     * {@inheritdoc}
      */
     public function getListeners($eventName = null)
     {
         if (null === $eventName) {
-            foreach (array_keys($this->listenerIds) as $serviceEventName) {
+            foreach ($this->listenerIds as $serviceEventName => $args) {
                 $this->lazyLoad($serviceEventName);
             }
         } else {
@@ -130,13 +143,25 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     }
 
     /**
-     * Adds a service as event subscriber
+     * {@inheritdoc}
+     */
+    public function getListenerPriority($eventName, $listener)
+    {
+        $this->lazyLoad($eventName);
+
+        return parent::getListenerPriority($eventName, $listener);
+    }
+
+    /**
+     * Adds a service as event subscriber.
      *
      * @param string $serviceId The service ID of the subscriber service
      * @param string $class     The service's class name (which must implement EventSubscriberInterface)
      */
     public function addSubscriberService($serviceId, $class)
     {
+        @trigger_error(sprintf('The %s class is deprecated since version 3.3 and will be removed in 4.0. Use EventDispatcher with closure factories instead.', __CLASS__), E_USER_DEPRECATED);
+
         foreach ($class::getSubscribedEvents() as $eventName => $params) {
             if (is_string($params)) {
                 $this->listenerIds[$eventName][] = array($serviceId, $params, 0);
@@ -150,23 +175,10 @@ class ContainerAwareEventDispatcher extends EventDispatcher
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * Lazily loads listeners for this event from the dependency injection
-     * container.
-     *
-     * @throws \InvalidArgumentException if the service is not defined
-     */
-    public function dispatch($eventName, Event $event = null)
-    {
-        $this->lazyLoad($eventName);
-
-        return parent::dispatch($eventName, $event);
-    }
-
     public function getContainer()
     {
+        @trigger_error('The '.__METHOD__.'() method is deprecated since version 3.3 as its class will be removed in 4.0. Inject the container or the services you need in your listeners/subscribers instead.', E_USER_DEPRECATED);
+
         return $this->container;
     }
 
@@ -181,8 +193,7 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     protected function lazyLoad($eventName)
     {
         if (isset($this->listenerIds[$eventName])) {
-            foreach ($this->listenerIds[$eventName] as $args) {
-                list($serviceId, $method, $priority) = $args;
+            foreach ($this->listenerIds[$eventName] as list($serviceId, $method, $priority)) {
                 $listener = $this->container->get($serviceId);
 
                 $key = $serviceId.'.'.$method;

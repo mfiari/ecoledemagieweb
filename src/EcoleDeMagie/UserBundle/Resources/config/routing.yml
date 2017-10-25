@@ -1,3 +1,0 @@
-ecole_de_magie_user_homepage:
-    pattern:  /hello/{name}
-    defaults: { _controller: EcoleDeMagieUserBundle:Default:index }

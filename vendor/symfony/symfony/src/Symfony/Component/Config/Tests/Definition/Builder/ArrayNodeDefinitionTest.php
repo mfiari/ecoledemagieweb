@@ -11,11 +11,13 @@
 
 namespace Symfony\Component\Config\Tests\Definition\Builder;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Config\Definition\Builder\ScalarNodeDefinition;
 use Symfony\Component\Config\Definition\Exception\InvalidDefinitionException;
 
-class ArrayNodeDefinitionTest extends \PHPUnit_Framework_TestCase
+class ArrayNodeDefinitionTest extends TestCase
 {
     public function testAppendingSomeNode()
     {
@@ -34,7 +36,7 @@ class ArrayNodeDefinitionTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException Symfony\Component\Config\Definition\Exception\InvalidDefinitionException
+     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidDefinitionException
      * @dataProvider providePrototypeNodeSpecificCalls
      */
     public function testPrototypeNodeSpecificOption($method, $args)
@@ -52,22 +54,25 @@ class ArrayNodeDefinitionTest extends \PHPUnit_Framework_TestCase
             array('defaultValue', array(array())),
             array('addDefaultChildrenIfNoneSet', array()),
             array('requiresAtLeastOneElement', array()),
-            array('useAttributeAsKey', array('foo'))
+            array('useAttributeAsKey', array('foo')),
         );
     }
 
     /**
-     * @expectedException Symfony\Component\Config\Definition\Exception\InvalidDefinitionException
+     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidDefinitionException
      */
     public function testConcreteNodeSpecificOption()
     {
         $node = new ArrayNodeDefinition('root');
-        $node->addDefaultsIfNotSet()->prototype('array');
+        $node
+            ->addDefaultsIfNotSet()
+            ->prototype('array')
+        ;
         $node->getNode();
     }
 
     /**
-     * @expectedException Symfony\Component\Config\Definition\Exception\InvalidDefinitionException
+     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidDefinitionException
      */
     public function testPrototypeNodesCantHaveADefaultValueWhenUsingDefaultChildren()
     {
@@ -140,13 +145,144 @@ class ArrayNodeDefinitionTest extends \PHPUnit_Framework_TestCase
 
     public function testNestedPrototypedArrayNodes()
     {
-        $node = new ArrayNodeDefinition('root');
-        $node
+        $nodeDefinition = new ArrayNodeDefinition('root');
+        $nodeDefinition
             ->addDefaultChildrenIfNoneSet()
             ->prototype('array')
                   ->prototype('array')
         ;
-        $node->getNode();
+        $node = $nodeDefinition->getNode();
+
+        $this->assertInstanceOf('Symfony\Component\Config\Definition\PrototypedArrayNode', $node);
+        $this->assertInstanceOf('Symfony\Component\Config\Definition\PrototypedArrayNode', $node->getPrototype());
+    }
+
+    public function testEnabledNodeDefaults()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $node
+            ->canBeEnabled()
+            ->children()
+                ->scalarNode('foo')->defaultValue('bar')->end()
+        ;
+
+        $this->assertEquals(array('enabled' => false, 'foo' => 'bar'), $node->getNode()->getDefaultValue());
+    }
+
+    /**
+     * @dataProvider getEnableableNodeFixtures
+     */
+    public function testTrueEnableEnabledNode($expected, $config, $message)
+    {
+        $processor = new Processor();
+        $node = new ArrayNodeDefinition('root');
+        $node
+            ->canBeEnabled()
+            ->children()
+                ->scalarNode('foo')->defaultValue('bar')->end()
+        ;
+
+        $this->assertEquals(
+            $expected,
+            $processor->process($node->getNode(), $config),
+            $message
+        );
+    }
+
+    public function testCanBeDisabled()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $node->canBeDisabled();
+
+        $this->assertTrue($this->getField($node, 'addDefaults'));
+        $this->assertEquals(array('enabled' => false), $this->getField($node, 'falseEquivalent'));
+        $this->assertEquals(array('enabled' => true), $this->getField($node, 'trueEquivalent'));
+        $this->assertEquals(array('enabled' => true), $this->getField($node, 'nullEquivalent'));
+
+        $nodeChildren = $this->getField($node, 'children');
+        $this->assertArrayHasKey('enabled', $nodeChildren);
+
+        $enabledNode = $nodeChildren['enabled'];
+        $this->assertTrue($this->getField($enabledNode, 'default'));
+        $this->assertTrue($this->getField($enabledNode, 'defaultValue'));
+    }
+
+    public function testIgnoreExtraKeys()
+    {
+        $node = new ArrayNodeDefinition('root');
+
+        $this->assertFalse($this->getField($node, 'ignoreExtraKeys'));
+
+        $result = $node->ignoreExtraKeys();
+
+        $this->assertEquals($node, $result);
+        $this->assertTrue($this->getField($node, 'ignoreExtraKeys'));
+    }
+
+    public function testNormalizeKeys()
+    {
+        $node = new ArrayNodeDefinition('root');
+
+        $this->assertTrue($this->getField($node, 'normalizeKeys'));
+
+        $result = $node->normalizeKeys(false);
+
+        $this->assertEquals($node, $result);
+        $this->assertFalse($this->getField($node, 'normalizeKeys'));
+    }
+
+    public function testPrototypeVariable()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('variable'), $node->variablePrototype());
+    }
+
+    public function testPrototypeScalar()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('scalar'), $node->scalarPrototype());
+    }
+
+    public function testPrototypeBoolean()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('boolean'), $node->booleanPrototype());
+    }
+
+    public function testPrototypeInteger()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('integer'), $node->integerPrototype());
+    }
+
+    public function testPrototypeFloat()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('float'), $node->floatPrototype());
+    }
+
+    public function testPrototypeArray()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('array'), $node->arrayPrototype());
+    }
+
+    public function testPrototypeEnum()
+    {
+        $node = new ArrayNodeDefinition('root');
+        $this->assertEquals($node->prototype('enum'), $node->enumPrototype());
+    }
+
+    public function getEnableableNodeFixtures()
+    {
+        return array(
+            array(array('enabled' => true, 'foo' => 'bar'), array(true), 'true enables an enableable node'),
+            array(array('enabled' => true, 'foo' => 'bar'), array(null), 'null enables an enableable node'),
+            array(array('enabled' => true, 'foo' => 'bar'), array(array('enabled' => true)), 'An enableable node can be enabled'),
+            array(array('enabled' => true, 'foo' => 'baz'), array(array('foo' => 'baz')), 'any configuration enables an enableable node'),
+            array(array('enabled' => false, 'foo' => 'baz'), array(array('foo' => 'baz', 'enabled' => false)), 'An enableable node can be disabled'),
+            array(array('enabled' => false, 'foo' => 'bar'), array(false), 'false disables an enableable node'),
+        );
     }
 
     protected function getField($object, $field)

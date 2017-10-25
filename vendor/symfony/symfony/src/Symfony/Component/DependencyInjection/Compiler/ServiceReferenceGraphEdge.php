@@ -23,25 +23,26 @@ class ServiceReferenceGraphEdge
     private $sourceNode;
     private $destNode;
     private $value;
+    private $lazy;
 
     /**
-     * Constructor.
-     *
      * @param ServiceReferenceGraphNode $sourceNode
      * @param ServiceReferenceGraphNode $destNode
      * @param string                    $value
+     * @param bool                      $lazy
      */
-    public function __construct(ServiceReferenceGraphNode $sourceNode, ServiceReferenceGraphNode $destNode, $value = null)
+    public function __construct(ServiceReferenceGraphNode $sourceNode, ServiceReferenceGraphNode $destNode, $value = null, $lazy = false)
     {
         $this->sourceNode = $sourceNode;
         $this->destNode = $destNode;
         $this->value = $value;
+        $this->lazy = $lazy;
     }
 
     /**
-     * Returns the value of the edge
+     * Returns the value of the edge.
      *
-     * @return ServiceReferenceGraphNode
+     * @return string
      */
     public function getValue()
     {
@@ -49,7 +50,7 @@ class ServiceReferenceGraphEdge
     }
 
     /**
-     * Returns the source node
+     * Returns the source node.
      *
      * @return ServiceReferenceGraphNode
      */
@@ -59,12 +60,22 @@ class ServiceReferenceGraphEdge
     }
 
     /**
-     * Returns the destination node
+     * Returns the destination node.
      *
      * @return ServiceReferenceGraphNode
      */
     public function getDestNode()
     {
         return $this->destNode;
+    }
+
+    /**
+     * Returns true if the edge is lazy, meaning it's a dependency not requiring direct instantiation.
+     *
+     * @return bool
+     */
+    public function isLazy()
+    {
+        return $this->lazy;
     }
 }

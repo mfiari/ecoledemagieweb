@@ -5,7 +5,7 @@ use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\RequestContext;
 
 /**
- * ProjectUrlMatcher
+ * ProjectUrlMatcher.
  *
  * This class has been auto-generated
  * by the Symfony Routing Component.
@@ -24,20 +24,33 @@ class ProjectUrlMatcher extends Symfony\Component\Routing\Matcher\UrlMatcher
     {
         $allow = array();
         $pathinfo = rawurldecode($pathinfo);
+        $trimmedPathinfo = rtrim($pathinfo, '/');
+        $context = $this->context;
+        $request = $this->request;
+        $requestMethod = $canonicalMethod = $context->getMethod();
+        $scheme = $context->getScheme();
+
+        if ('HEAD' === $requestMethod) {
+            $canonicalMethod = 'GET';
+        }
+
 
         if (0 === strpos($pathinfo, '/rootprefix')) {
             // static
-            if ($pathinfo === '/rootprefix/test') {
+            if ('/rootprefix/test' === $pathinfo) {
                 return array('_route' => 'static');
             }
 
             // dynamic
-            if (preg_match('#^/rootprefix/(?<var>[^/]+)$#s', $pathinfo, $matches)) {
-                $matches['_route'] = 'dynamic';
-
-                return $matches;
+            if (preg_match('#^/rootprefix/(?P<var>[^/]++)$#s', $pathinfo, $matches)) {
+                return $this->mergeDefaults(array_replace($matches, array('_route' => 'dynamic')), array ());
             }
 
+        }
+
+        // with-condition
+        if ('/with-condition' === $pathinfo && ($context->getMethod() == "GET")) {
+            return array('_route' => 'with-condition');
         }
 
         throw 0 < count($allow) ? new MethodNotAllowedException(array_unique($allow)) : new ResourceNotFoundException();

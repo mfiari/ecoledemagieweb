@@ -19,20 +19,17 @@ namespace Symfony\Component\Config\Definition\Builder;
 class NormalizationBuilder
 {
     protected $node;
-    public $before;
-    public $remappings;
+    public $before = array();
+    public $remappings = array();
 
     /**
-     * Constructor
+     * Constructor.
      *
      * @param NodeDefinition $node The related node
      */
     public function __construct(NodeDefinition $node)
     {
         $this->node = $node;
-        $this->keys = false;
-        $this->remappings = array();
-        $this->before = array();
     }
 
     /**
@@ -41,7 +38,7 @@ class NormalizationBuilder
      * @param string $key    The key to remap
      * @param string $plural The plural of the key in case of irregular plural
      *
-     * @return NormalizationBuilder
+     * @return $this
      */
     public function remap($key, $plural = null)
     {
@@ -55,7 +52,7 @@ class NormalizationBuilder
      *
      * @param \Closure $closure
      *
-     * @return ExprBuilder|NormalizationBuilder
+     * @return ExprBuilder|$this
      */
     public function before(\Closure $closure = null)
     {

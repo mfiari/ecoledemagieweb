@@ -9,13 +9,14 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\Component\Tests\BrowserKit;
+namespace Symfony\Component\BrowserKit\Tests;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\BrowserKit\CookieJar;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\BrowserKit\Response;
 
-class CookieJarTest extends \PHPUnit_Framework_TestCase
+class CookieJarTest extends TestCase
 {
     public function testSetGet()
     {
@@ -80,6 +81,13 @@ class CookieJarTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('Symfony\Component\BrowserKit\Cookie', $cookieJar->get('bar'));
         $this->assertEquals('foo', $cookieJar->get('foo')->getValue(), '->updateFromSetCookie() updates cookies from a Set-Cookie header');
         $this->assertEquals('bar', $cookieJar->get('bar')->getValue(), '->updateFromSetCookie() keeps existing cookies');
+    }
+
+    public function testUpdateFromEmptySetCookie()
+    {
+        $cookieJar = new CookieJar();
+        $cookieJar->updateFromSetCookie(array(''));
+        $this->assertEquals(array(), $cookieJar->all());
     }
 
     public function testUpdateFromSetCookieWithMultipleCookies()
@@ -167,6 +175,16 @@ class CookieJarTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(array(), array_keys($cookieJar->allValues('http://example.com/')));
     }
 
+    public function testCookieExpireWithDomain()
+    {
+        $cookieJar = new CookieJar();
+        $cookieJar->set($cookie1 = new Cookie('foo', 'bar1', null, '/foo', 'http://example2.com/'));
+        $cookieJar->expire('foo', '/foo', 'http://example2.com/');
+
+        $this->assertNull($cookieJar->get('foo'), '->get() returns null if the cookie is expired');
+        $this->assertEquals(array(), array_keys($cookieJar->allValues('http://example2.com/')));
+    }
+
     public function testCookieWithSameNameButDifferentPaths()
     {
         $cookieJar = new CookieJar();
@@ -187,5 +205,46 @@ class CookieJarTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(array(), array_keys($cookieJar->allValues('http://example.com/')));
         $this->assertEquals(array('foo' => 'bar1'), $cookieJar->allValues('http://foo.example.com/'));
         $this->assertEquals(array('foo' => 'bar2'), $cookieJar->allValues('http://bar.example.com/'));
+    }
+
+    public function testCookieGetWithSubdomain()
+    {
+        $cookieJar = new CookieJar();
+        $cookieJar->set($cookie1 = new Cookie('foo', 'bar', null, '/', '.example.com'));
+        $cookieJar->set($cookie2 = new Cookie('foo1', 'bar', null, '/', 'test.example.com'));
+
+        $this->assertEquals($cookie1, $cookieJar->get('foo', '/', 'foo.example.com'));
+        $this->assertEquals($cookie1, $cookieJar->get('foo', '/', 'example.com'));
+        $this->assertEquals($cookie2, $cookieJar->get('foo1', '/', 'test.example.com'));
+    }
+
+    public function testCookieGetWithWrongSubdomain()
+    {
+        $cookieJar = new CookieJar();
+        $cookieJar->set($cookie1 = new Cookie('foo1', 'bar', null, '/', 'test.example.com'));
+
+        $this->assertNull($cookieJar->get('foo1', '/', 'foo.example.com'));
+    }
+
+    public function testCookieGetWithSubdirectory()
+    {
+        $cookieJar = new CookieJar();
+        $cookieJar->set($cookie1 = new Cookie('foo', 'bar', null, '/test', '.example.com'));
+        $cookieJar->set($cookie2 = new Cookie('foo1', 'bar1', null, '/', '.example.com'));
+
+        $this->assertNull($cookieJar->get('foo', '/', '.example.com'));
+        $this->assertNull($cookieJar->get('foo', '/bar', '.example.com'));
+        $this->assertEquals($cookie1, $cookieJar->get('foo', '/test', 'example.com'));
+        $this->assertEquals($cookie2, $cookieJar->get('foo1', '/', 'example.com'));
+        $this->assertEquals($cookie2, $cookieJar->get('foo1', '/bar', 'example.com'));
+    }
+
+    public function testCookieWithWildcardDomain()
+    {
+        $cookieJar = new CookieJar();
+        $cookieJar->set(new Cookie('foo', 'bar', null, '/', '.example.com'));
+
+        $this->assertEquals(array('foo' => 'bar'), $cookieJar->allValues('http://www.example.com'));
+        $this->assertEmpty($cookieJar->allValues('http://wwwexample.com'));
     }
 }

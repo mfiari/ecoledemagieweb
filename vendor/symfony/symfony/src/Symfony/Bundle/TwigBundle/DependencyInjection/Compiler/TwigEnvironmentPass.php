@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 
 /**
- * Adds tagged twig.extension services to twig service
+ * Adds tagged twig.extension services to twig service.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
@@ -36,7 +36,7 @@ class TwigEnvironmentPass implements CompilerPassInterface
         // be registered.
         $calls = $definition->getMethodCalls();
         $definition->setMethodCalls(array());
-        foreach ($container->findTaggedServiceIds('twig.extension') as $id => $attributes) {
+        foreach ($container->findTaggedServiceIds('twig.extension', true) as $id => $attributes) {
             $definition->addMethodCall('addExtension', array(new Reference($id)));
         }
         $definition->setMethodCalls(array_merge($definition->getMethodCalls(), $calls));

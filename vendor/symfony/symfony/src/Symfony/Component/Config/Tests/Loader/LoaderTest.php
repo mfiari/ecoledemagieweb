@@ -11,49 +11,93 @@
 
 namespace Symfony\Component\Config\Tests\Loader;
 
-use Symfony\Component\Config\Loader\LoaderResolver;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Loader\Loader;
-use Symfony\Component\Config\Exception\FileLoaderLoadException;
 
-class LoaderTest extends \PHPUnit_Framework_TestCase
+class LoaderTest extends TestCase
 {
-    /**
-     * @covers Symfony\Component\Config\Loader\Loader::getResolver
-     * @covers Symfony\Component\Config\Loader\Loader::setResolver
-     */
     public function testGetSetResolver()
     {
-        $resolver = new LoaderResolver();
+        $resolver = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderResolverInterface')->getMock();
+
         $loader = new ProjectLoader1();
         $loader->setResolver($resolver);
+
         $this->assertSame($resolver, $loader->getResolver(), '->setResolver() sets the resolver loader');
     }
 
-    /**
-     * @covers Symfony\Component\Config\Loader\Loader::resolve
-     */
     public function testResolve()
     {
-        $loader1 = $this->getMock('Symfony\Component\Config\Loader\LoaderInterface');
-        $loader1->expects($this->once())->method('supports')->will($this->returnValue(true));
-        $resolver = new LoaderResolver(array($loader1));
+        $resolvedLoader = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderInterface')->getMock();
+
+        $resolver = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderResolverInterface')->getMock();
+        $resolver->expects($this->once())
+            ->method('resolve')
+            ->with('foo.xml')
+            ->will($this->returnValue($resolvedLoader));
+
         $loader = new ProjectLoader1();
         $loader->setResolver($resolver);
 
         $this->assertSame($loader, $loader->resolve('foo.foo'), '->resolve() finds a loader');
-        $this->assertSame($loader1, $loader->resolve('foo.xml'), '->resolve() finds a loader');
+        $this->assertSame($resolvedLoader, $loader->resolve('foo.xml'), '->resolve() finds a loader');
+    }
 
-        $loader1 = $this->getMock('Symfony\Component\Config\Loader\LoaderInterface');
-        $loader1->expects($this->once())->method('supports')->will($this->returnValue(false));
-        $resolver = new LoaderResolver(array($loader1));
+    /**
+     * @expectedException \Symfony\Component\Config\Exception\FileLoaderLoadException
+     */
+    public function testResolveWhenResolverCannotFindLoader()
+    {
+        $resolver = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderResolverInterface')->getMock();
+        $resolver->expects($this->once())
+            ->method('resolve')
+            ->with('FOOBAR')
+            ->will($this->returnValue(false));
+
         $loader = new ProjectLoader1();
         $loader->setResolver($resolver);
-        try {
-            $loader->resolve('FOOBAR');
-            $this->fail('->resolve() throws a FileLoaderLoadException if the resource cannot be loaded');
-        } catch (FileLoaderLoadException $e) {
-            $this->assertInstanceOf('Symfony\Component\Config\Exception\FileLoaderLoadException', $e, '->resolve() throws a FileLoaderLoadException if the resource cannot be loaded');
-        }
+
+        $loader->resolve('FOOBAR');
+    }
+
+    public function testImport()
+    {
+        $resolvedLoader = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderInterface')->getMock();
+        $resolvedLoader->expects($this->once())
+            ->method('load')
+            ->with('foo')
+            ->will($this->returnValue('yes'));
+
+        $resolver = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderResolverInterface')->getMock();
+        $resolver->expects($this->once())
+            ->method('resolve')
+            ->with('foo')
+            ->will($this->returnValue($resolvedLoader));
+
+        $loader = new ProjectLoader1();
+        $loader->setResolver($resolver);
+
+        $this->assertEquals('yes', $loader->import('foo'));
+    }
+
+    public function testImportWithType()
+    {
+        $resolvedLoader = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderInterface')->getMock();
+        $resolvedLoader->expects($this->once())
+            ->method('load')
+            ->with('foo', 'bar')
+            ->will($this->returnValue('yes'));
+
+        $resolver = $this->getMockBuilder('Symfony\Component\Config\Loader\LoaderResolverInterface')->getMock();
+        $resolver->expects($this->once())
+            ->method('resolve')
+            ->with('foo', 'bar')
+            ->will($this->returnValue($resolvedLoader));
+
+        $loader = new ProjectLoader1();
+        $loader->setResolver($resolver);
+
+        $this->assertEquals('yes', $loader->import('foo', 'bar'));
     }
 }
 

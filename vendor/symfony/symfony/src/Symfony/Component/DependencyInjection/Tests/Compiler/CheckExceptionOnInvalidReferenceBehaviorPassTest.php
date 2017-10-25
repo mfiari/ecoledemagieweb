@@ -11,13 +11,13 @@
 
 namespace Symfony\Component\DependencyInjection\Tests\Compiler;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Definition;
-
 use Symfony\Component\DependencyInjection\Compiler\CheckExceptionOnInvalidReferenceBehaviorPass;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-class CheckExceptionOnInvalidReferenceBehaviorPassTest extends \PHPUnit_Framework_TestCase
+class CheckExceptionOnInvalidReferenceBehaviorPassTest extends TestCase
 {
     public function testProcess()
     {
@@ -28,10 +28,14 @@ class CheckExceptionOnInvalidReferenceBehaviorPassTest extends \PHPUnit_Framewor
             ->addArgument(new Reference('b'))
         ;
         $container->register('b', '\stdClass');
+
+        $this->process($container);
+
+        $this->addToAssertionCount(1);
     }
 
     /**
-     * @expectedException Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException
      */
     public function testProcessThrowsExceptionOnInvalidReference()
     {
@@ -46,7 +50,7 @@ class CheckExceptionOnInvalidReferenceBehaviorPassTest extends \PHPUnit_Framewor
     }
 
     /**
-     * @expectedException Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException
+     * @expectedException \Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException
      */
     public function testProcessThrowsExceptionOnInvalidReferenceFromInlinedDefinition()
     {

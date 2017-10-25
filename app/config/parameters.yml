@@ -1,14 +1,12 @@
+# This file is auto-generated during the composer install
 parameters:
-    database_driver: pdo_mysql
-    database_host: localhost
+    database_host: 127.0.0.1
     database_port: null
-    database_name: jeu_ecoledemagie
+    database_name: symfony
     database_user: root
     database_password: null
     mailer_transport: smtp
-    mailer_host: localhost
+    mailer_host: 127.0.0.1
     mailer_user: null
     mailer_password: null
-    locale: en
-    secret: 862b7367cc69b5ed2f4d6d83e3813f03cf1e2d7b
-    database_path: null
+    secret: 933ce463b6f417e0f71a0b0e21599da0d95a971b

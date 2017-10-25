@@ -11,22 +11,22 @@
 
 namespace Symfony\Component\Form;
 
-use Symfony\Component\Form\Exception\FormException;
+use Symfony\Component\Form\Exception\InvalidArgumentException;
 
 /**
- * A form extension with preloaded types, type exceptions and type guessers.
+ * A form extension with preloaded types, type extensions and type guessers.
  *
  * @author Bernhard Schussek <bschussek@gmail.com>
  */
 class PreloadedExtension implements FormExtensionInterface
 {
     /**
-     * @var array
+     * @var FormTypeInterface[]
      */
     private $types = array();
 
     /**
-     * @var array
+     * @var array[FormTypeExtensionInterface[]]
      */
     private $typeExtensions = array();
 
@@ -38,15 +38,18 @@ class PreloadedExtension implements FormExtensionInterface
     /**
      * Creates a new preloaded extension.
      *
-     * @param array                    $types          The types that the extension should support.
-     * @param array                    $typeExtensions The type extensions that the extension should support.
-     * @param FormTypeGuesserInterface $typeGuesser    The guesser that the extension should support.
+     * @param FormTypeInterface[]            $types          The types that the extension should support
+     * @param FormTypeExtensionInterface[][] $typeExtensions The type extensions that the extension should support
+     * @param FormTypeGuesserInterface|null  $typeGuesser    The guesser that the extension should support
      */
-    public function __construct(array $types, array $typeExtensions, FormTypeGuesserInterface $typeGuesser)
+    public function __construct(array $types, array $typeExtensions, FormTypeGuesserInterface $typeGuesser = null)
     {
-        $this->types = $types;
         $this->typeExtensions = $typeExtensions;
         $this->typeGuesser = $typeGuesser;
+
+        foreach ($types as $type) {
+            $this->types[get_class($type)] = $type;
+        }
     }
 
     /**
@@ -55,7 +58,7 @@ class PreloadedExtension implements FormExtensionInterface
     public function getType($name)
     {
         if (!isset($this->types[$name])) {
-            throw new FormException(sprintf('The type "%s" can not be loaded by this extension', $name));
+            throw new InvalidArgumentException(sprintf('The type "%s" can not be loaded by this extension', $name));
         }
 
         return $this->types[$name];

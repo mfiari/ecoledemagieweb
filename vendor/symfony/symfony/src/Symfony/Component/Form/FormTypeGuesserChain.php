@@ -21,12 +21,16 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
     /**
      * Constructor.
      *
-     * @param array $guessers Guessers as instances of FormTypeGuesserInterface
+     * @param FormTypeGuesserInterface[] $guessers Guessers as instances of FormTypeGuesserInterface
      *
      * @throws UnexpectedTypeException if any guesser does not implement FormTypeGuesserInterface
      */
-    public function __construct(array $guessers)
+    public function __construct($guessers)
     {
+        if (!is_array($guessers) && !$guessers instanceof \Traversable) {
+            throw new UnexpectedTypeException($guessers, 'array or Traversable');
+        }
+
         foreach ($guessers as $guesser) {
             if (!$guesser instanceof FormTypeGuesserInterface) {
                 throw new UnexpectedTypeException($guesser, 'Symfony\Component\Form\FormTypeGuesserInterface');
@@ -41,7 +45,7 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function guessType($class, $property)
     {
@@ -51,7 +55,7 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function guessRequired($class, $property)
     {
@@ -61,7 +65,7 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function guessMaxLength($class, $property)
     {
@@ -71,17 +75,7 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function guessMinLength($class, $property)
-    {
-        return $this->guess(function ($guesser) use ($class, $property) {
-            return $guesser->guessMinLength($class, $property);
-        });
-    }
-
-    /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function guessPattern($class, $property)
     {
@@ -92,12 +86,12 @@ class FormTypeGuesserChain implements FormTypeGuesserInterface
 
     /**
      * Executes a closure for each guesser and returns the best guess from the
-     * return values
+     * return values.
      *
      * @param \Closure $closure The closure to execute. Accepts a guesser
-     *                            as argument and should return a Guess instance
+     *                          as argument and should return a Guess instance
      *
-     * @return Guess The guess with the highest confidence
+     * @return Guess|null The guess with the highest confidence
      */
     private function guess(\Closure $closure)
     {

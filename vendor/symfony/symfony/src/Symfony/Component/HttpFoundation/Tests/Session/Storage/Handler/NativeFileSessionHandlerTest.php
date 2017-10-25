@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\HttpFoundation\Tests\Session\Storage\Handler;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Session\Storage\Handler\NativeFileSessionHandler;
 use Symfony\Component\HttpFoundation\Session\Storage\NativeSessionStorage;
 
@@ -20,20 +21,16 @@ use Symfony\Component\HttpFoundation\Session\Storage\NativeSessionStorage;
  * @author Drak <drak@zikula.org>
  *
  * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
  */
-class NativeFileSessionHandlerTest extends \PHPUnit_Framework_TestCase
+class NativeFileSessionHandlerTest extends TestCase
 {
-    public function test__Construct()
+    public function testConstruct()
     {
         $storage = new NativeSessionStorage(array('name' => 'TESTING'), new NativeFileSessionHandler(sys_get_temp_dir()));
 
-        if (version_compare(phpversion(), '5.4.0', '<')) {
-            $this->assertEquals('files', $storage->getSaveHandler()->getSaveHandlerName());
-            $this->assertEquals('files', ini_get('session.save_handler'));
-        } else {
-            $this->assertEquals('files', $storage->getSaveHandler()->getSaveHandlerName());
-            $this->assertEquals('user', ini_get('session.save_handler'));
-        }
+        $this->assertEquals('files', $storage->getSaveHandler()->getSaveHandlerName());
+        $this->assertEquals('user', ini_get('session.save_handler'));
 
         $this->assertEquals(sys_get_temp_dir(), ini_get('session.save_path'));
         $this->assertEquals('TESTING', ini_get('session.name'));
@@ -42,7 +39,7 @@ class NativeFileSessionHandlerTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider savePathDataProvider
      */
-    public function test__ConstructSavePath($savePath, $expectedSavePath, $path)
+    public function testConstructSavePath($savePath, $expectedSavePath, $path)
     {
         $handler = new NativeFileSessionHandler($savePath);
         $this->assertEquals($expectedSavePath, ini_get('session.save_path'));
@@ -54,6 +51,7 @@ class NativeFileSessionHandlerTest extends \PHPUnit_Framework_TestCase
     public function savePathDataProvider()
     {
         $base = sys_get_temp_dir();
+
         return array(
             array("$base/foo", "$base/foo", "$base/foo"),
             array("5;$base/foo", "5;$base/foo", "$base/foo"),
@@ -64,7 +62,7 @@ class NativeFileSessionHandlerTest extends \PHPUnit_Framework_TestCase
     /**
      * @expectedException \InvalidArgumentException
      */
-    public function test__ConstructException()
+    public function testConstructException()
     {
         $handler = new NativeFileSessionHandler('something;invalid;with;too-many-args');
     }

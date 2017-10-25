@@ -17,21 +17,29 @@ use Symfony\Bridge\Twig\TokenParser\TransDefaultDomainTokenParser;
 use Symfony\Component\Translation\TranslatorInterface;
 use Symfony\Bridge\Twig\NodeVisitor\TranslationNodeVisitor;
 use Symfony\Bridge\Twig\NodeVisitor\TranslationDefaultDomainNodeVisitor;
+use Twig\Extension\AbstractExtension;
+use Twig\NodeVisitor\NodeVisitorInterface;
+use Twig\TokenParser\AbstractTokenParser;
+use Twig\TwigFilter;
 
 /**
  * Provides integration of the Translation component with Twig.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class TranslationExtension extends \Twig_Extension
+class TranslationExtension extends AbstractExtension
 {
     private $translator;
     private $translationNodeVisitor;
 
-    public function __construct(TranslatorInterface $translator)
+    public function __construct(TranslatorInterface $translator, NodeVisitorInterface $translationNodeVisitor = null)
     {
+        if (!$translationNodeVisitor) {
+            $translationNodeVisitor = new TranslationNodeVisitor();
+        }
+
         $this->translator = $translator;
-        $this->translationNodeVisitor = new TranslationNodeVisitor();
+        $this->translationNodeVisitor = $translationNodeVisitor;
     }
 
     public function getTranslator()
@@ -45,15 +53,15 @@ class TranslationExtension extends \Twig_Extension
     public function getFilters()
     {
         return array(
-            'trans' => new \Twig_Filter_Method($this, 'trans'),
-            'transchoice' => new \Twig_Filter_Method($this, 'transchoice'),
+            new TwigFilter('trans', array($this, 'trans')),
+            new TwigFilter('transchoice', array($this, 'transchoice')),
         );
     }
 
     /**
      * Returns the token parser instance to add to the existing list.
      *
-     * @return array An array of Twig_TokenParser instances
+     * @return AbstractTokenParser[]
      */
     public function getTokenParsers()
     {
@@ -86,26 +94,16 @@ class TranslationExtension extends \Twig_Extension
 
     public function trans($message, array $arguments = array(), $domain = null, $locale = null)
     {
-        if (null === $domain) {
-            $domain = 'messages';
-        }
-
         return $this->translator->trans($message, $arguments, $domain, $locale);
     }
 
     public function transchoice($message, $count, array $arguments = array(), $domain = null, $locale = null)
     {
-        if (null === $domain) {
-            $domain = 'messages';
-        }
-
         return $this->translator->transChoice($message, $count, array_merge(array('%count%' => $count), $arguments), $domain, $locale);
     }
 
     /**
-     * Returns the name of the extension.
-     *
-     * @return string The extension name
+     * {@inheritdoc}
      */
     public function getName()
     {

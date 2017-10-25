@@ -11,14 +11,15 @@
 
 namespace Symfony\Component\HttpFoundation\Tests\Session\Flash;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Session\Flash\AutoExpireFlashBag as FlashBag;
 
 /**
- * AutoExpireFlashBagTest
+ * AutoExpireFlashBagTest.
  *
  * @author Drak <drak@zikula.org>
  */
-class AutoExpireFlashBagTest extends \PHPUnit_Framework_TestCase
+class AutoExpireFlashBagTest extends TestCase
 {
     /**
      * @var \Symfony\Component\HttpFoundation\Session\Flash\AutoExpireFlashBag
@@ -38,7 +39,7 @@ class AutoExpireFlashBagTest extends \PHPUnit_Framework_TestCase
         $this->bag->initialize($this->array);
     }
 
-    public function tearDown()
+    protected function tearDown()
     {
         $this->bag = null;
         parent::tearDown();

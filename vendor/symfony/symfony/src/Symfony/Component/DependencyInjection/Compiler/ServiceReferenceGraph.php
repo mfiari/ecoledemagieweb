@@ -23,22 +23,17 @@ use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
  */
 class ServiceReferenceGraph
 {
-    private $nodes;
-
     /**
-     * Constructor.
+     * @var ServiceReferenceGraphNode[]
      */
-    public function __construct()
-    {
-        $this->nodes = array();
-    }
+    private $nodes = array();
 
     /**
      * Checks if the graph has a specific node.
      *
      * @param string $id Id to check
      *
-     * @return Boolean
+     * @return bool
      */
     public function hasNode($id)
     {
@@ -50,7 +45,7 @@ class ServiceReferenceGraph
      *
      * @param string $id The id to retrieve
      *
-     * @return ServiceReferenceGraphNode The node matching the supplied identifier
+     * @return ServiceReferenceGraphNode
      *
      * @throws InvalidArgumentException if no node matches the supplied identifier
      */
@@ -66,7 +61,7 @@ class ServiceReferenceGraph
     /**
      * Returns all nodes.
      *
-     * @return array An array of all ServiceReferenceGraphNode objects
+     * @return ServiceReferenceGraphNode[]
      */
     public function getNodes()
     {
@@ -89,12 +84,24 @@ class ServiceReferenceGraph
      * @param string $destId
      * @param string $destValue
      * @param string $reference
+     * @param bool   $lazy
      */
-    public function connect($sourceId, $sourceValue, $destId, $destValue = null, $reference = null)
+    public function connect($sourceId, $sourceValue, $destId, $destValue = null, $reference = null/*, bool $lazy = false*/)
     {
+        if (func_num_args() >= 6) {
+            $lazy = func_get_arg(5);
+        } else {
+            if (__CLASS__ !== get_class($this)) {
+                $r = new \ReflectionMethod($this, __FUNCTION__);
+                if (__CLASS__ !== $r->getDeclaringClass()->getName()) {
+                    @trigger_error(sprintf('Method %s() will have a 6th `bool $lazy = false` argument in version 4.0. Not defining it is deprecated since 3.3.', __METHOD__), E_USER_DEPRECATED);
+                }
+            }
+            $lazy = false;
+        }
         $sourceNode = $this->createNode($sourceId, $sourceValue);
         $destNode = $this->createNode($destId, $destValue);
-        $edge = new ServiceReferenceGraphEdge($sourceNode, $destNode, $reference);
+        $edge = new ServiceReferenceGraphEdge($sourceNode, $destNode, $reference, $lazy);
 
         $sourceNode->addOutEdge($edge);
         $destNode->addInEdge($edge);

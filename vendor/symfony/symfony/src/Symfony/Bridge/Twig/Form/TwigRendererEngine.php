@@ -13,6 +13,8 @@ namespace Symfony\Bridge\Twig\Form;
 
 use Symfony\Component\Form\AbstractRendererEngine;
 use Symfony\Component\Form\FormView;
+use Twig\Environment;
+use Twig\Template;
 
 /**
  * @author Bernhard Schussek <bschussek@gmail.com>
@@ -20,20 +22,36 @@ use Symfony\Component\Form\FormView;
 class TwigRendererEngine extends AbstractRendererEngine implements TwigRendererEngineInterface
 {
     /**
-     * @var \Twig_Environment
+     * @var Environment
      */
     private $environment;
 
     /**
-     * @var \Twig_Template
+     * @var Template
      */
     private $template;
 
+    public function __construct(array $defaultThemes = array(), Environment $environment = null)
+    {
+        if (null === $environment) {
+            @trigger_error(sprintf('Not passing a Twig Environment as the second argument for "%s" constructor is deprecated since version 3.2 and won\'t be possible in 4.0.', static::class), E_USER_DEPRECATED);
+        }
+
+        parent::__construct($defaultThemes);
+        $this->environment = $environment;
+    }
+
     /**
      * {@inheritdoc}
+     *
+     * @deprecated since version 3.3, to be removed in 4.0
      */
-    public function setEnvironment(\Twig_Environment $environment)
+    public function setEnvironment(Environment $environment)
     {
+        if ($this->environment) {
+            @trigger_error(sprintf('The "%s()" method is deprecated since version 3.3 and will be removed in 4.0. Pass the Twig Environment as second argument of the constructor instead.', __METHOD__), E_USER_DEPRECATED);
+        }
+
         $this->environment = $environment;
     }
 
@@ -70,11 +88,11 @@ class TwigRendererEngine extends AbstractRendererEngine implements TwigRendererE
      *
      * @see getResourceForBlock()
      *
-     * @param string   $cacheKey  The cache key of the form view.
-     * @param FormView $view      The form view for finding the applying themes.
-     * @param string   $blockName The name of the block to load.
+     * @param string   $cacheKey  The cache key of the form view
+     * @param FormView $view      The form view for finding the applying themes
+     * @param string   $blockName The name of the block to load
      *
-     * @return Boolean True if the resource could be loaded, false otherwise.
+     * @return bool True if the resource could be loaded, false otherwise
      */
     protected function loadResourceForBlockName($cacheKey, FormView $view, $blockName)
     {
@@ -141,7 +159,7 @@ class TwigRendererEngine extends AbstractRendererEngine implements TwigRendererE
     /**
      * Loads the resources for all blocks in a theme.
      *
-     * @param string $cacheKey The cache key for storing the resource.
+     * @param string $cacheKey The cache key for storing the resource
      * @param mixed  $theme    The theme to load the block from. This parameter
      *                         is passed by reference, because it might be necessary
      *                         to initialize the theme first. Any changes made to
@@ -150,13 +168,13 @@ class TwigRendererEngine extends AbstractRendererEngine implements TwigRendererE
      */
     protected function loadResourcesFromTheme($cacheKey, &$theme)
     {
-        if (!$theme instanceof \Twig_Template) {
-            /* @var \Twig_Template $theme */
+        if (!$theme instanceof Template) {
+            /* @var Template $theme */
             $theme = $this->environment->loadTemplate($theme);
         }
 
         if (null === $this->template) {
-            // Store the first \Twig_Template instance that we find so that
+            // Store the first Template instance that we find so that
             // we can call displayBlock() later on. It doesn't matter *which*
             // template we use for that, since we pass the used blocks manually
             // anyway.
@@ -166,6 +184,8 @@ class TwigRendererEngine extends AbstractRendererEngine implements TwigRendererE
         // Use a separate variable for the inheritance traversal, because
         // theme is a reference and we don't want to change it.
         $currentTheme = $theme;
+
+        $context = $this->environment->mergeGlobals(array());
 
         // The do loop takes care of template inheritance.
         // Add blocks from all templates in the inheritance tree, but avoid
@@ -178,6 +198,6 @@ class TwigRendererEngine extends AbstractRendererEngine implements TwigRendererE
                     $this->resources[$cacheKey][$block] = $blockData;
                 }
             }
-        } while (false !== $currentTheme = $currentTheme->getParent(array()));
+        } while (false !== $currentTheme = $currentTheme->getParent($context));
     }
 }

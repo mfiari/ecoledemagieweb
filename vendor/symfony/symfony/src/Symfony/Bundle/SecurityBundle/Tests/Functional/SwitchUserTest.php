@@ -11,9 +11,6 @@
 
 namespace Symfony\Bundle\SecurityBundle\Tests\Functional;
 
-/**
- * @group functional
- */
 class SwitchUserTest extends WebTestCase
 {
     /**
@@ -23,7 +20,7 @@ class SwitchUserTest extends WebTestCase
     {
         $client = $this->createAuthenticatedClient($originalUser);
 
-        $client->request('GET', '/profile?_switch_user=' . $targetUser);
+        $client->request('GET', '/profile?_switch_user='.$targetUser);
 
         $this->assertEquals($expectedStatus, $client->getResponse()->getStatusCode());
         $this->assertEquals($expectedUser, $client->getProfile()->getCollector('security')->getUser());
@@ -54,10 +51,10 @@ class SwitchUserTest extends WebTestCase
     public function getTestParameters()
     {
         return array(
-            'unauthorized_user_cannot_switch'               => array('user_cannot_switch_1', 'user_cannot_switch_1', 'user_cannot_switch_1', 403),
-            'authorized_user_can_switch'                    => array('user_can_switch', 'user_cannot_switch_1', 'user_cannot_switch_1', 200),
+            'unauthorized_user_cannot_switch' => array('user_cannot_switch_1', 'user_cannot_switch_1', 'user_cannot_switch_1', 403),
+            'authorized_user_can_switch' => array('user_can_switch', 'user_cannot_switch_1', 'user_cannot_switch_1', 200),
             'authorized_user_cannot_switch_to_non_existent' => array('user_can_switch', 'user_does_not_exist', 'user_can_switch', 500),
-            'authorized_user_can_switch_to_himself'         => array('user_can_switch', 'user_can_switch', 'user_can_switch', 200),
+            'authorized_user_can_switch_to_himself' => array('user_can_switch', 'user_can_switch', 'user_can_switch', 200),
         );
     }
 
@@ -65,7 +62,6 @@ class SwitchUserTest extends WebTestCase
     {
         $client = $this->createClient(array('test_case' => 'StandardFormLogin', 'root_config' => 'switchuser.yml'));
         $client->followRedirects(true);
-        $client->insulate();
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['_username'] = $username;
@@ -73,19 +69,5 @@ class SwitchUserTest extends WebTestCase
         $client->submit($form);
 
         return $client;
-    }
-
-    protected function setUp()
-    {
-        parent::setUp();
-
-        $this->deleteTmpDir('StandardFormLogin');
-    }
-
-    protected function tearDown()
-    {
-        parent::tearDown();
-
-        $this->deleteTmpDir('StandardFormLogin');
     }
 }

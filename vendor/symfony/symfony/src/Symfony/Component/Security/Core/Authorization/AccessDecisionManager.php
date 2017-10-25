@@ -22,29 +22,48 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
  */
 class AccessDecisionManager implements AccessDecisionManagerInterface
 {
+    const STRATEGY_AFFIRMATIVE = 'affirmative';
+    const STRATEGY_CONSENSUS = 'consensus';
+    const STRATEGY_UNANIMOUS = 'unanimous';
+
     private $voters;
     private $strategy;
     private $allowIfAllAbstainDecisions;
     private $allowIfEqualGrantedDeniedDecisions;
 
     /**
-     * Constructor.
+     * @param iterable|VoterInterface[] $voters                             An iterator of VoterInterface instances
+     * @param string                    $strategy                           The vote strategy
+     * @param bool                      $allowIfAllAbstainDecisions         Whether to grant access if all voters abstained or not
+     * @param bool                      $allowIfEqualGrantedDeniedDecisions Whether to grant access if result are equals
      *
-     * @param VoterInterface[] $voters                             An array of VoterInterface instances
-     * @param string           $strategy                           The vote strategy
-     * @param Boolean          $allowIfAllAbstainDecisions         Whether to grant access if all voters abstained or not
-     * @param Boolean          $allowIfEqualGrantedDeniedDecisions Whether to grant access if result are equals
+     * @throws \InvalidArgumentException
      */
-    public function __construct(array $voters, $strategy = 'affirmative', $allowIfAllAbstainDecisions = false, $allowIfEqualGrantedDeniedDecisions = true)
+    public function __construct($voters = array(), $strategy = self::STRATEGY_AFFIRMATIVE, $allowIfAllAbstainDecisions = false, $allowIfEqualGrantedDeniedDecisions = true)
     {
-        if (!$voters) {
-            throw new \InvalidArgumentException('You must at least add one voter.');
+        $strategyMethod = 'decide'.ucfirst($strategy);
+        if (!is_callable(array($this, $strategyMethod))) {
+            throw new \InvalidArgumentException(sprintf('The strategy "%s" is not supported.', $strategy));
         }
 
         $this->voters = $voters;
-        $this->strategy = 'decide'.ucfirst($strategy);
-        $this->allowIfAllAbstainDecisions = (Boolean) $allowIfAllAbstainDecisions;
-        $this->allowIfEqualGrantedDeniedDecisions = (Boolean) $allowIfEqualGrantedDeniedDecisions;
+        $this->strategy = $strategyMethod;
+        $this->allowIfAllAbstainDecisions = (bool) $allowIfAllAbstainDecisions;
+        $this->allowIfEqualGrantedDeniedDecisions = (bool) $allowIfEqualGrantedDeniedDecisions;
+    }
+
+    /**
+     * Configures the voters.
+     *
+     * @param VoterInterface[] $voters An array of VoterInterface instances
+     *
+     * @deprecated since version 3.3, to be removed in 4.0. Pass the voters to the constructor instead.
+     */
+    public function setVoters(array $voters)
+    {
+        @trigger_error(sprintf('The %s() method is deprecated since version 3.3 and will be removed in 4.0. Pass the voters to the constructor instead.', __METHOD__), E_USER_DEPRECATED);
+
+        $this->voters = $voters;
     }
 
     /**
@@ -53,34 +72,6 @@ class AccessDecisionManager implements AccessDecisionManagerInterface
     public function decide(TokenInterface $token, array $attributes, $object = null)
     {
         return $this->{$this->strategy}($token, $attributes, $object);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function supportsAttribute($attribute)
-    {
-        foreach ($this->voters as $voter) {
-            if ($voter->supportsAttribute($attribute)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function supportsClass($class)
-    {
-        foreach ($this->voters as $voter) {
-            if ($voter->supportsClass($class)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -133,7 +124,6 @@ class AccessDecisionManager implements AccessDecisionManagerInterface
     {
         $grant = 0;
         $deny = 0;
-        $abstain = 0;
         foreach ($this->voters as $voter) {
             $result = $voter->vote($token, $object, $attributes);
 
@@ -147,11 +137,6 @@ class AccessDecisionManager implements AccessDecisionManagerInterface
                     ++$deny;
 
                     break;
-
-                default:
-                    ++$abstain;
-
-                    break;
             }
         }
 
@@ -163,7 +148,7 @@ class AccessDecisionManager implements AccessDecisionManagerInterface
             return false;
         }
 
-        if ($grant == $deny && $grant != 0) {
+        if ($grant > 0) {
             return $this->allowIfEqualGrantedDeniedDecisions;
         }
 
@@ -179,8 +164,8 @@ class AccessDecisionManager implements AccessDecisionManagerInterface
     private function decideUnanimous(TokenInterface $token, array $attributes, $object = null)
     {
         $grant = 0;
-        foreach ($attributes as $attribute) {
-            foreach ($this->voters as $voter) {
+        foreach ($this->voters as $voter) {
+            foreach ($attributes as $attribute) {
                 $result = $voter->vote($token, $object, array($attribute));
 
                 switch ($result) {

@@ -12,7 +12,6 @@
 namespace Symfony\Component\HttpFoundation\Session\Storage;
 
 use Symfony\Component\HttpFoundation\Session\SessionBagInterface;
-use Symfony\Component\HttpFoundation\Session\Storage\MetadataBag;
 
 /**
  * MockArraySessionStorage mocks the session for unit tests.
@@ -39,12 +38,12 @@ class MockArraySessionStorage implements SessionStorageInterface
     protected $name;
 
     /**
-     * @var boolean
+     * @var bool
      */
     protected $started = false;
 
     /**
-     * @var boolean
+     * @var bool
      */
     protected $closed = false;
 
@@ -59,15 +58,15 @@ class MockArraySessionStorage implements SessionStorageInterface
     protected $metadataBag;
 
     /**
-     * @var array
+     * @var array|SessionBagInterface[]
      */
-    protected $bags;
+    protected $bags = array();
 
     /**
      * Constructor.
      *
      * @param string      $name    Session name
-     * @param MetadataBag $metaBag MetadataBag instance.
+     * @param MetadataBag $metaBag MetadataBag instance
      */
     public function __construct($name = 'MOCKSESSID', MetadataBag $metaBag = null)
     {
@@ -90,7 +89,7 @@ class MockArraySessionStorage implements SessionStorageInterface
      */
     public function start()
     {
-        if ($this->started && !$this->closed) {
+        if ($this->started) {
             return true;
         }
 
@@ -159,8 +158,12 @@ class MockArraySessionStorage implements SessionStorageInterface
      */
     public function save()
     {
+        if (!$this->started || $this->closed) {
+            throw new \RuntimeException('Trying to save a session that was not started yet or was already closed');
+        }
         // nothing to do since we don't persist the session data
         $this->closed = false;
+        $this->started = false;
     }
 
     /**
@@ -246,7 +249,7 @@ class MockArraySessionStorage implements SessionStorageInterface
      */
     protected function generateId()
     {
-        return sha1(uniqid(mt_rand()));
+        return hash('sha256', uniqid('ss_mock_', true));
     }
 
     protected function loadSession()

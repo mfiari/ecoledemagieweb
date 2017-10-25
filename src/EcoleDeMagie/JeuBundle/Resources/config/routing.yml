@@ -1,7 +1,0 @@
-ecole_de_magie_jeu_homepage:
-    pattern:  /hello/{name}
-    defaults: { _controller: EcoleDeMagieJeuBundle:Default:helloWorld }
-
-ecole_de_magie_jeu_index:
-    pattern:  /
-    defaults: {_controller: EcoleDeMagieJeuBundle:Default:index }

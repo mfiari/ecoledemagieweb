@@ -11,17 +11,17 @@
 
 namespace Symfony\Component\DependencyInjection\Tests\Compiler;
 
-use Symfony\Component\DependencyInjection\Scope;
-
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Compiler\AnalyzeServiceReferencesPass;
-use Symfony\Component\DependencyInjection\Compiler\Compiler;
 use Symfony\Component\DependencyInjection\Compiler\RepeatedPass;
 use Symfony\Component\DependencyInjection\Compiler\InlineServiceDefinitionsPass;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 
-class InlineServiceDefinitionsPassTest extends \PHPUnit_Framework_TestCase
+class InlineServiceDefinitionsPassTest extends TestCase
 {
     public function testProcess()
     {
@@ -43,7 +43,7 @@ class InlineServiceDefinitionsPassTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($container->getDefinition('inlinable.service'), $arguments[0]);
     }
 
-    public function testProcessDoesNotInlineWhenAliasedServiceIsNotOfPrototypeScope()
+    public function testProcessDoesNotInlinesWhenAliasedServiceIsShared()
     {
         $container = new ContainerBuilder();
         $container
@@ -63,17 +63,17 @@ class InlineServiceDefinitionsPassTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($ref, $arguments[0]);
     }
 
-    public function testProcessDoesInlineServiceOfPrototypeScope()
+    public function testProcessDoesInlineNonSharedService()
     {
         $container = new ContainerBuilder();
         $container
             ->register('foo')
-            ->setScope('prototype')
+            ->setShared(false)
         ;
         $container
             ->register('bar')
             ->setPublic(false)
-            ->setScope('prototype')
+            ->setShared(false)
         ;
         $container->setAlias('moo', 'bar');
 
@@ -112,18 +112,168 @@ class InlineServiceDefinitionsPassTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($a, $inlinedArguments[0]);
     }
 
-    public function testProcessInlinesOnlyIfSameScope()
+    public function testProcessInlinesPrivateFactoryReference()
     {
         $container = new ContainerBuilder();
 
-        $container->addScope(new Scope('foo'));
-        $a = $container->register('a')->setPublic(false)->setScope('foo');
-        $b = $container->register('b')->addArgument(new Reference('a'));
+        $container->register('a')->setPublic(false);
+        $b = $container
+            ->register('b')
+            ->setPublic(false)
+            ->setFactory(array(new Reference('a'), 'a'))
+        ;
+
+        $container
+            ->register('foo')
+            ->setArguments(array(
+                $ref = new Reference('b'),
+            ));
 
         $this->process($container);
-        $arguments = $b->getArguments();
-        $this->assertEquals(new Reference('a'), $arguments[0]);
-        $this->assertTrue($container->hasDefinition('a'));
+
+        $inlinedArguments = $container->getDefinition('foo')->getArguments();
+        $this->assertSame($b, $inlinedArguments[0]);
+    }
+
+    public function testProcessDoesNotInlinePrivateFactoryIfReferencedMultipleTimesWithinTheSameDefinition()
+    {
+        $container = new ContainerBuilder();
+        $container
+            ->register('a')
+        ;
+        $container
+            ->register('b')
+            ->setPublic(false)
+            ->setFactory(array(new Reference('a'), 'a'))
+        ;
+
+        $container
+            ->register('foo')
+            ->setArguments(array(
+                    $ref1 = new Reference('b'),
+                    $ref2 = new Reference('b'),
+                ))
+        ;
+        $this->process($container);
+
+        $args = $container->getDefinition('foo')->getArguments();
+        $this->assertSame($ref1, $args[0]);
+        $this->assertSame($ref2, $args[1]);
+    }
+
+    public function testProcessDoesNotInlineReferenceWhenUsedByInlineFactory()
+    {
+        $container = new ContainerBuilder();
+        $container
+            ->register('a')
+        ;
+        $container
+            ->register('b')
+            ->setPublic(false)
+            ->setFactory(array(new Reference('a'), 'a'))
+        ;
+
+        $inlineFactory = new Definition();
+        $inlineFactory->setPublic(false);
+        $inlineFactory->setFactory(array(new Reference('b'), 'b'));
+
+        $container
+            ->register('foo')
+            ->setArguments(array(
+                    $ref = new Reference('b'),
+                    $inlineFactory,
+                ))
+        ;
+        $this->process($container);
+
+        $args = $container->getDefinition('foo')->getArguments();
+        $this->assertSame($ref, $args[0]);
+    }
+
+    public function testProcessDoesNotInlineWhenServiceIsPrivateButLazy()
+    {
+        $container = new ContainerBuilder();
+        $container
+            ->register('foo')
+            ->setPublic(false)
+            ->setLazy(true)
+        ;
+
+        $container
+            ->register('service')
+            ->setArguments(array($ref = new Reference('foo')))
+        ;
+
+        $this->process($container);
+
+        $arguments = $container->getDefinition('service')->getArguments();
+        $this->assertSame($ref, $arguments[0]);
+    }
+
+    public function testProcessDoesNotInlineWhenServiceReferencesItself()
+    {
+        $container = new ContainerBuilder();
+        $container
+            ->register('foo')
+            ->setPublic(false)
+            ->addMethodCall('foo', array($ref = new Reference('foo')))
+        ;
+
+        $this->process($container);
+
+        $calls = $container->getDefinition('foo')->getMethodCalls();
+        $this->assertSame($ref, $calls[0][1][0]);
+    }
+
+    public function testProcessDoesNotSetLazyArgumentValuesAfterInlining()
+    {
+        $container = new ContainerBuilder();
+        $container
+            ->register('inline')
+            ->setShared(false)
+        ;
+        $container
+            ->register('service-closure')
+            ->setArguments(array(new ServiceClosureArgument(new Reference('inline'))))
+        ;
+        $container
+            ->register('iterator')
+            ->setArguments(array(new IteratorArgument(array(new Reference('inline')))))
+        ;
+
+        $this->process($container);
+
+        $values = $container->getDefinition('service-closure')->getArgument(0)->getValues();
+        $this->assertInstanceOf(Reference::class, $values[0]);
+        $this->assertSame('inline', (string) $values[0]);
+
+        $values = $container->getDefinition('iterator')->getArgument(0)->getValues();
+        $this->assertInstanceOf(Reference::class, $values[0]);
+        $this->assertSame('inline', (string) $values[0]);
+    }
+
+    public function testGetInlinedServiceIdData()
+    {
+        $container = new ContainerBuilder();
+        $container
+            ->register('inlinable.service')
+            ->setPublic(false)
+        ;
+        $container
+            ->register('non_inlinable.service')
+            ->setPublic(true)
+        ;
+
+        $container
+            ->register('other_service')
+            ->setArguments(array(new Reference('inlinable.service')))
+        ;
+
+        $inlinePass = new InlineServiceDefinitionsPass();
+        $repeatedPass = new RepeatedPass(array(new AnalyzeServiceReferencesPass(), $inlinePass));
+        $repeatedPass->process($container);
+
+        $this->assertEquals(array('inlinable.service' => array('other_service')), $inlinePass->getInlinedServiceIds());
     }
 
     protected function process(ContainerBuilder $container)

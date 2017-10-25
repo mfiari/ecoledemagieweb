@@ -29,14 +29,35 @@ class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
 
     public function testLoad()
     {
-        $this->reader->expects($this->once())->method('getClassAnnotation');
+        $this->reader->expects($this->exactly(4))->method('getClassAnnotation');
+
+        $this->reader
+            ->expects($this->any())
+            ->method('getMethodAnnotations')
+            ->will($this->returnValue(array()))
+        ;
 
         $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses');
     }
 
-    /**
-     * @covers Symfony\Component\Routing\Loader\AnnotationDirectoryLoader::supports
-     */
+    public function testLoadIgnoresHiddenDirectories()
+    {
+        $this->expectAnnotationsToBeReadFrom(array(
+            'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\BarClass',
+            'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\BazClass',
+            'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\BazClass',
+            'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\FooClass',
+        ));
+
+        $this->reader
+            ->expects($this->any())
+            ->method('getMethodAnnotations')
+            ->will($this->returnValue(array()))
+        ;
+
+        $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses');
+    }
+
     public function testSupports()
     {
         $fixturesDir = __DIR__.'/../Fixtures';
@@ -46,5 +67,14 @@ class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
 
         $this->assertTrue($this->loader->supports($fixturesDir, 'annotation'), '->supports() checks the resource type if specified');
         $this->assertFalse($this->loader->supports($fixturesDir, 'foo'), '->supports() checks the resource type if specified');
+    }
+
+    private function expectAnnotationsToBeReadFrom(array $classes)
+    {
+        $this->reader->expects($this->exactly(count($classes)))
+            ->method('getClassAnnotation')
+            ->with($this->callback(function (\ReflectionClass $class) use ($classes) {
+                return in_array($class->getName(), $classes);
+            }));
     }
 }

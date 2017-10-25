@@ -19,17 +19,17 @@ namespace Symfony\Component\HttpFoundation\Session\Storage\Handler;
 class MemcacheSessionHandler implements \SessionHandlerInterface
 {
     /**
-     * @var \Memcache Memcache driver.
+     * @var \Memcache Memcache driver
      */
     private $memcache;
 
     /**
-     * @var integer Time to live in seconds
+     * @var int Time to live in seconds
      */
     private $ttl;
 
     /**
-     * @var string Key prefix for shared environments.
+     * @var string Key prefix for shared environments
      */
     private $prefix;
 
@@ -59,7 +59,7 @@ class MemcacheSessionHandler implements \SessionHandlerInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function open($savePath, $sessionName)
     {
@@ -67,15 +67,15 @@ class MemcacheSessionHandler implements \SessionHandlerInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function close()
     {
-        return $this->memcache->close();
+        return true;
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function read($sessionId)
     {
@@ -83,7 +83,7 @@ class MemcacheSessionHandler implements \SessionHandlerInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function write($sessionId, $data)
     {
@@ -91,19 +91,31 @@ class MemcacheSessionHandler implements \SessionHandlerInterface
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function destroy($sessionId)
     {
-        return $this->memcache->delete($this->prefix.$sessionId);
+        $this->memcache->delete($this->prefix.$sessionId);
+
+        return true;
     }
 
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
-    public function gc($lifetime)
+    public function gc($maxlifetime)
     {
         // not required here because memcache will auto expire the records anyhow.
         return true;
+    }
+
+    /**
+     * Return a Memcache instance.
+     *
+     * @return \Memcache
+     */
+    protected function getMemcache()
+    {
+        return $this->memcache;
     }
 }

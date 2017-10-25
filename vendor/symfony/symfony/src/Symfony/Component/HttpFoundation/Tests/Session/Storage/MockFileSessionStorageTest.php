@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\HttpFoundation\Tests\Session\Storage;
 
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Session\Storage\MockFileSessionStorage;
 use Symfony\Component\HttpFoundation\Session\Flash\FlashBag;
 use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
@@ -20,7 +21,7 @@ use Symfony\Component\HttpFoundation\Session\Attribute\AttributeBag;
  *
  * @author Drak <drak@zikula.org>
  */
-class MockFileSessionStorageTest extends \PHPUnit_Framework_TestCase
+class MockFileSessionStorageTest extends TestCase
 {
     /**
      * @var string
@@ -28,7 +29,7 @@ class MockFileSessionStorageTest extends \PHPUnit_Framework_TestCase
     private $sessionDir;
 
     /**
-     * @var FileMockSessionStorage
+     * @var MockFileSessionStorage
      */
     protected $storage;
 
@@ -104,6 +105,15 @@ class MockFileSessionStorageTest extends \PHPUnit_Framework_TestCase
         $storage2->setId($storage1->getId());
         $storage2->start();
         $this->assertEquals('bar', $storage2->getBag('attributes')->get('foo'), 'values persist between instances');
+    }
+
+    /**
+     * @expectedException \RuntimeException
+     */
+    public function testSaveWithoutStart()
+    {
+        $storage1 = $this->getStorage();
+        $storage1->save();
     }
 
     private function getStorage()
